@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardsmith Maker</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load React -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Load Babel for compiling JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { margin: 0; background-color: #0a090f; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Inline Icons (Replacing lucide-react for standalone HTML support) ---
+        const Icon = ({ children, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+        const Sparkles = (p) => <Icon {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></Icon>;
+        const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></Icon>;
+        const Layers = (p) => <Icon {...p}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></Icon>;
+        const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+        const Swords = (p) => <Icon {...p}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></Icon>;
+        const Shield = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Icon>;
+        const Crosshair = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></Icon>;
+        const X = (p) => <Icon {...p}><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></Icon>;
+        const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></Icon>;
+
+        // --- App Configuration ---
+        const RARITY_COLORS = {
+            COMMON: '#64748b',
+            UNCOMMON: '#10b981',
+            RARE: '#3b82f6',
+            EPIC: '#a855f7',
+            LEGENDARY: '#f59e0b',
+        };
+
+        const DEFAULT_CARD = {
+            name: 'New Unit',
+            atk: 1,
+            hp: 1,
+            cost: 1,
+            rarity: 'COMMON',
+            series: 'Original',
+            ability: 'none',
+            description: "£{A mysterious entity.}£ --- /lightgreen/Guard/ that gains /red/+1 atk/.",
+            scenario: {
+                active: false,
+                type: 'or',
+                side: 'player',
+                cards: []
+            }
+        };
+
+        const App = () => {
+            const [cards, setCards] = useState([]);
+            const [searchQuery, setSearchQuery] = useState('');
+            const [loading, setLoading] = useState(true);
+            const [scenarioInput, setScenarioInput] = useState('');
+            const [showNewSeriesBox, setShowNewSeriesBox] = useState(false);
+            const [newSeriesName, setNewSeriesName] = useState('');
+            
+            const [formData, setFormData] = useState(DEFAULT_CARD);
+
+            // Fetch cards.json
+            useEffect(() => {
+                fetch('cards.json')
+                .then(res => {
+                    if (!res.ok) throw new Error("Not found");
+                    return res.json();
+                })
+                .then(data => {
+                    setCards(data);
+                    setLoading(false);
+                })
+                .catch(err => {
+                    console.log("Using fallback cards. cards.json not found or blocked by CORS.");
+                    setCards([
+                        { name: "Diana Bullen", atk: 2, hp: 4, cost: 3, rarity: "LEGENDARY", series: "New Haven", description: "£{''The more Diana experimented, the more ability she got.''}£ --- /lightgreen/Guard/ that gains /darkred/+2 atk/ at the end of each turn." },
+                        { name: "Joseph", atk: 1, hp: 2, cost: 1, rarity: "RARE", series: "New Haven", description: "When played will deal /darkred/1 damage/ to all enemies." }
+                    ]);
+                    setLoading(false);
+                });
+            }, []);
+
+            const filteredCards = useMemo(() => {
+                return cards.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+            }, [cards, searchQuery]);
+
+            const seriesOptions = useMemo(() => {
+                const sets = new Set(cards.map(c => c.series).filter(Boolean));
+                return Array.from(sets);
+            }, [cards]);
+
+            const handleSelectTemplate = (card) => {
+                setFormData({
+                    ...DEFAULT_CARD,
+                    ...card,
+                    scenario: card.abilities?.scenario || { active: false, type: 'or', side: 'player', cards: [] },
+                    description: card.description || ""
+                });
+            };
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({
+                    ...prev,
+                    [name]: (name === 'atk' || name === 'hp' || name === 'cost') ? parseInt(value) || 0 : value
+                }));
+            };
+
+            const insertToDescription = (snippet) => {
+                setFormData(prev => ({
+                    ...prev,
+                    description: prev.description + snippet
+                }));
+            };
+
+            const handleScenarioChange = (field, value) => {
+                setFormData(prev => ({
+                    ...prev,
+                    scenario: { ...prev.scenario, [field]: value }
+                }));
+            };
+
+            const addScenarioCard = (e) => {
+                e.preventDefault();
+                if (scenarioInput.trim() && !formData.scenario.cards.includes(scenarioInput.trim())) {
+                    handleScenarioChange('cards', [...formData.scenario.cards, scenarioInput.trim()]);
+                    setScenarioInput('');
+                }
+            };
+
+            const removeScenarioCard = (nameToRemove) => {
+                handleScenarioChange('cards', formData.scenario.cards.filter(n => n !== nameToRemove));
+            };
+
+            const renderDescription = (text) => {
+                if (!text) return <span className="opacity-40 italic">No special abilities.</span>;
+                
+                // First, split by /n to handle manual new lines
+                const lines = text.split(/\/n/g);
+                
+                return lines.map((line, lineIndex) => {
+                    // Handle the Full Line Separator (---)
+                    if (line.trim() === '---') {
+                        return <div key={`hr-${lineIndex}`} className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-2" />;
+                    }
+
+                    // Regex for all our tags:
+                    // 1. £{italics}£
+                    // 2. /color/text/
+                    // 3. **glow**
+                    // 4. _size_text_
+                    // 5. [rainbow]text[/rainbow]
+                    // 6. {shake}text{/shake}
+                    // 7. #icon# (atk, hp, cost)
+                    const tokens = line.split(/(£\{.+?\}£|\/[a-z#0-9]+\/.*?\/|\*\*.*?\*\*|_\d+px_.*?_|\[rainbow\].*?\[\/rainbow\]|\{shake\}.*?\{\/shake\}|#[a-z]+#)/g).filter(Boolean);
+                    
+                    return (
+                        <div key={`line-${lineIndex}`} className="min-h-[1.2em] mb-1">
+                            {tokens.map((token, i) => {
+                                // £{Italics}£
+                                if (token.startsWith('£{')) return <span key={i} className="italic opacity-80 text-[0.9em]">{token.slice(2, -2)}</span>;
+                                
+                                // /color/Text/
+                                if (token.startsWith('/') && token.endsWith('/')) {
+                                    const parts = token.split('/');
+                                    return <span key={i} style={{ color: parts[1] }} className="font-bold">{parts[2]}</span>;
+                                }
+                                
+                                // **Bold & Glow**
+                                if (token.startsWith('**')) return <span key={i} className="font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.5)', letterSpacing: '0.02em' }}>{token.slice(2, -2)}</span>;
+                                
+                                // _20px_Sized Text_
+                                if (token.startsWith('_')) {
+                                    const match = token.match(/_(\d+px)_(.*?)_/);
+                                    if (match) return <span key={i} style={{ fontSize: match[1] }}>{match[2]}</span>;
+                                }
+
+                                // [rainbow]Animated[/rainbow]
+                                if (token.startsWith('[rainbow]')) return <span key={i} className="animate-pulse font-black" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{token.slice(9, -10)}</span>;
+
+                                // {shake}Effect{/shake}
+                                if (token.startsWith('{shake}')) return <span key={i} className="inline-block animate-bounce text-red-400">{token.slice(7, -8)}</span>;
+
+                                // #icon#
+                                if (token === '#atk#') return <Swords key={i} className="inline w-3 h-3 mb-1 text-red-500" />;
+                                if (token === '#hp#') return <Shield key={i} className="inline w-3 h-3 mb-1 text-green-500" />;
+                                if (token === '#cost#') return <Zap key={i} className="inline w-3 h-3 mb-1 text-indigo-400" />;
+
+                                return token;
+                            })}
+                        </div>
+                    );
+                });
+            };
+
+            return (
+                <div className="min-h-screen font-sans p-4 md:p-8 text-slate-50">
+                <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                    <h1 className="text-4xl font-black tracking-tight flex items-center gap-2" style={{ color: '#6366f1' }}>
+                        <Sparkles className="w-8 h-8" /> CARDSMITH
+                    </h1>
+                    <p className="text-indigo-200/50 font-medium">Design and visualize your legendary collection</p>
+                    </div>
+                    
+                    <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                    <input 
+                        type="text"
+                        placeholder="Search existing cards..."
+                        className="pl-10 pr-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none w-full md:w-72 transition-all"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <div className="absolute top-full right-0 mt-2 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto w-full border border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#13111c' }}>
+                        {filteredCards.length > 0 ? (
+                            filteredCards.map((c, i) => (
+                            <button
+                                key={i}
+                                onClick={() => {
+                                handleSelectTemplate(c);
+                                setSearchQuery('');
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-indigo-500/20 flex items-center justify-between border-b border-white/5 last:border-0 transition-colors"
+                            >
+                                <span className="font-semibold text-sm text-indigo-100">{c.name}</span>
+                                <span className="text-[10px] uppercase px-2 py-1 rounded bg-black/40 text-indigo-300 font-bold">{c.rarity}</span>
+                            </button>
+                            ))
+                        ) : (
+                            <div className="px-4 py-3 text-sm text-slate-500 italic">No cards found</div>
+                        )}
+                        </div>
+                    )}
+                    </div>
+                </header>
+
+                <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    
+                    <section className="col-span-1 lg:col-span-7 xl:col-span-8 space-y-6 p-6 md:p-8 rounded-3xl border shadow-2xl relative overflow-hidden" style={{ backgroundColor: '#13111c', borderColor: 'rgba(255,255,255,0.1)' }}>
+                    
+                    <div className="flex items-center gap-2 mb-4 text-indigo-400 font-bold uppercase tracking-wider text-sm">
+                        <Layers className="w-4 h-4" /> Card Configuration
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="col-span-full">
+                        <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase">Card Name</label>
+                        <input 
+                            name="name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold border"
+                            style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                        />
+                        </div>
+
+                        <div>
+                        <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase">Rarity</label>
+                        <select 
+                            name="rarity"
+                            value={formData.rarity}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium border appearance-none"
+                            style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                        >
+                            <option value="COMMON" style={{color:'black'}}>Common</option>
+                            <option value="UNCOMMON" style={{color:'black'}}>Uncommon</option>
+                            <option value="RARE" style={{color:'black'}}>Rare</option>
+                            <option value="EPIC" style={{color:'black'}}>Epic</option>
+                            <option value="LEGENDARY" style={{color:'black'}}>Legendary</option>
+                        </select>
+                        </div>
+
+                        <div className="relative">
+                            <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase">Series</label>
+                            
+                            {/* Freeform Input */}
+                            <input 
+                                type="text"
+                                name="series"
+                                value={formData.series}
+                                onChange={handleInputChange}
+                                onFocus={() => document.getElementById('custom-dropdown')?.classList.remove('hidden')}
+                                onBlur={() => {
+                                // Small timeout to allow click events on the dropdown to fire before it hides
+                                setTimeout(() => document.getElementById('custom-dropdown')?.classList.add('hidden'), 200);
+                                }}
+                                placeholder="Type or select a series..."
+                                className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium border"
+                                style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                            />
+
+                            {/* Styled Custom Dropdown */}
+                            <div 
+                                id="custom-dropdown"
+                                className="hidden absolute left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto border border-white/10 backdrop-blur-xl" 
+                                style={{ backgroundColor: '#13111c' }}
+                            >
+                                {/* Always show "Original" as the first choice */}
+                                <button
+                                type="button"
+                                onClick={() => {
+                                    setFormData(prev => ({ ...prev, series: 'Original' }));
+                                    document.getElementById('custom-dropdown')?.classList.add('hidden');
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5"
+                                >
+                                Original
+                                </button>
+
+                                {/* Map through the rest of the existing series */}
+                                {seriesOptions
+                                .filter(s => s !== 'Original' && s.toLowerCase().includes((formData.series || '').toLowerCase()))
+                                .map((s, i) => (
+                                    <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => {
+                                        setFormData(prev => ({ ...prev, series: s }));
+                                        document.getElementById('custom-dropdown')?.classList.add('hidden');
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5 last:border-0"
+                                    >
+                                    {s}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="col-span-full mb-4 p-4 rounded-xl border border-white/5 bg-white/5">
+                            <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <Sparkles className="w-3 h-3" /> Stylization Guide (Click to add to description)
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[10px] font-medium text-slate-400">
+                                
+                                {/* Color Text */}
+                                <div 
+                                    onClick={() => insertToDescription('/red/Text/')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">/red/Text/</code>
+                                    <span className="text-xs font-bold text-red-500">Text</span>
+                                </div>
+                                
+                                {/* Bold Glow */}
+                                <div 
+                                    onClick={() => insertToDescription('**Text**')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">**Text**</code>
+                                    <span className="text-xs font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.6)' }}>Text</span>
+                                </div>
+                                
+                                {/* Custom Size */}
+                                <div 
+                                    onClick={() => insertToDescription('_16px_Text_')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">_16px_Text_</code>
+                                    <span style={{ fontSize: '16px' }} className="font-bold text-white">Text</span>
+                                </div>
+
+                                {/* Small Italics */}
+                                <div 
+                                    onClick={() => insertToDescription('£{Text}£')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">£{'{Text}'}£</code>
+                                    <span className="text-xs italic text-white/70">Text</span>
+                                </div>
+                                
+                                {/* Full Width Line */}
+                                <div 
+                                    onClick={() => insertToDescription('/n---/n')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">/n---/n</code>
+                                    <div className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-1" />
+                                </div>
+                                
+                                {/* Animated Rainbow */}
+                                <div 
+                                    onClick={() => insertToDescription('[rainbow]Text[/rainbow]')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">[rainbow]Text[/rainbow]</code>
+                                    <span className="text-xs font-black animate-pulse" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Text</span>
+                                </div>
+                                
+                                {/* Shaking Text */}
+                                <div 
+                                    onClick={() => insertToDescription('{shake}Text{/shake}')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">{'{shake}Text{/shake}'}</code>
+                                    <span className="text-xs font-bold inline-block animate-bounce text-red-400">Text</span>
+                                </div>
+                                
+                                {/* Dynamic Icons */}
+                                <div 
+                                    onClick={() => insertToDescription('#atk# #hp# #cost#')}
+                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
+                                >
+                                    <code className="text-indigo-400 text-[9px]">#atk# #hp# #cost#</code>
+                                    <div className="flex items-center gap-2">
+                                        <Swords className="w-3.5 h-3.5 text-red-500" />
+                                        <Shield className="w-3.5 h-3.5 text-green-500" />
+                                        <Zap className="w-3.5 h-3.5 text-indigo-400" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="col-span-full">
+                        <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase flex items-center justify-between">
+                            <span>Description Text</span>
+                            <span className="text-[10px] text-indigo-400 lowercase">For Json behaviour please keep this in one line and use /n when needed</span>
+                        </label>
+                        <textarea 
+                            name="description"
+                            value={formData.description}
+                            onChange={handleInputChange}
+                            rows={4}
+                            className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-y text-sm border"
+                            style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                        />
+                        </div>
+                    </div>
+
+                    <div className="col-span-full mt-8 p-5 rounded-2xl border" style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.05)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                        <label className="text-sm font-bold text-indigo-300 uppercase flex items-center gap-2">
+                            <Crosshair className="w-4 h-4" /> Condition Scenario
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" checked={formData.scenario.active} onChange={(e) => handleScenarioChange('active', e.target.checked)} />
+                            <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full relative"></div>
+                        </label>
+                        </div>
+
+                        {formData.scenario.active && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Rule Type</label>
+                                <div className="flex bg-black/40 rounded-lg p-1 border border-white/5">
+                                {['or', 'and', 'each'].map(type => (
+                                    <button key={type} onClick={() => handleScenarioChange('type', type)}
+                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${formData.scenario.type === type ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+                                    {type}
+                                    </button>
+                                ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Board</label>
+                                <div className="flex bg-black/40 rounded-lg p-1 border border-white/5">
+                                <button onClick={() => handleScenarioChange('side', 'player')}
+                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${formData.scenario.side === 'player' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+                                    Player Side
+                                </button>
+                                <button onClick={() => handleScenarioChange('side', 'enemy')}
+                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${formData.scenario.side === 'enemy' ? 'bg-red-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
+                                    Enemy Side
+                                </button>
+                                </div>
+                            </div>
+                            </div>
+
+                            <div className="flex flex-col h-full">
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Required Characters</label>
+                            <form onSubmit={addScenarioCard} className="flex gap-2 mb-2">
+                                <input 
+                                list="card-names"
+                                value={scenarioInput}
+                                onChange={(e) => setScenarioInput(e.target.value)}
+                                placeholder="Type a character name..."
+                                className="flex-1 px-3 py-2 text-sm rounded-lg bg-black/40 border border-white/10 text-white focus:outline-none focus:border-indigo-500"
+                                />
+                                <datalist id="card-names">
+                                {cards.map((c, idx) => <option key={idx} value={c.name} />)}
+                                </datalist>
+                                <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg font-bold text-sm transition-colors">
+                                Add
+                                </button>
+                            </form>
+                            
+                            <div className="flex-1 bg-black/20 border border-white/5 rounded-lg p-2 min-h-[80px] flex flex-wrap gap-2 items-start content-start">
+                                {formData.scenario.cards.length === 0 ? (
+                                <span className="text-xs text-slate-500 italic w-full text-center mt-2">No characters added</span>
+                                ) : (
+                                formData.scenario.cards.map((name, idx) => (
+                                    <div key={idx} className="bg-indigo-500/20 border border-indigo-500/30 text-indigo-200 text-xs px-2 py-1 rounded-md flex items-center gap-1.5">
+                                    {name}
+                                    <button onClick={() => removeScenarioCard(name)} className="hover:text-red-400 transition-colors"><X className="w-3 h-3" /></button>
+                                    </div>
+                                ))
+                                )}
+                            </div>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+
+                    <div className="col-span-full mt-8 pt-6 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                            <label className="text-sm font-bold text-indigo-300 uppercase flex items-center gap-2">
+                                <Layers className="w-4 h-4" /> JSON Output (Ready for cards.json)
+                            </label>
+                            
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => {
+                                        const jsonText = document.getElementById('json-output-text').innerText;
+                                        navigator.clipboard.writeText(jsonText);
+                                        
+                                        // Small visual feedback on the button
+                                        const btn = document.getElementById('copy-btn');
+                                        const originalText = btn.innerHTML;
+                                        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
+                                        setTimeout(() => { btn.innerHTML = originalText; }, 1500);
+                                    }}
+                                    id="copy-btn"
+                                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all flex items-center gap-1.5 shadow-lg active:scale-95"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+                                    Copy to Clipboard
+                                </button>
+                                
+                                <button 
+                                    onClick={() => setFormData(DEFAULT_CARD)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-lg border transition-colors"
+                                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}
+                                >
+                                    Reset Form
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Live generated code block */}
+                        <div className="relative">
+                            <pre 
+                                className="w-full p-4 rounded-xl text-xs font-mono text-indigo-200 overflow-x-auto border"
+                                style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderColor: 'rgba(255,255,255,0.05)' }}
+                            >
+                                <code id="json-output-text">
+                    {`\`\`\`
+    {
+        "name": "${formData.name}",
+        "atk": ${formData.atk},
+        "hp": ${formData.hp},
+        "cost": ${formData.cost},
+        "rarity": "${formData.rarity}",
+        "ability": "${formData.ability || 'none'}",
+        "series": "${formData.series}",
+        "description": "${formData.description.replace(/"/g, '\\"')}"${formData.scenario.active ? `,
+        "abilities": {
+            "scenario": {
+            "type": "${formData.scenario.type}",
+            "side": "${formData.scenario.side}",
+            "cards": ${JSON.stringify(formData.scenario.cards)}
+            }
+        }
+    ` : ''}
+    },
+    
+\`\`\``}
+                                </code>
+                            </pre>
+                        </div>
+                    </div>
+                    </section>
+
+                    <section className="col-span-1 lg:col-span-5 xl:col-span-4 sticky top-8 flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-6 text-indigo-400 font-bold uppercase tracking-wider text-sm">
+                        Live Vault Preview
+                    </div>
+
+                    <div 
+                        className="relative flex flex-col items-center justify-start p-1.5 shadow-[0_15px_30px_-5px_rgba(0,0,0,0.8)] transition-transform duration-300 hover:scale-105 select-none"
+                        style={{
+                        width: '250px',
+                        height: '350px',
+                        backgroundColor: '#111',
+                        border: `2px solid ${RARITY_COLORS[formData.rarity]}`,
+                        borderRadius: '10px'
+                        }}
+                    >
+                        <div 
+                        className="absolute flex items-center justify-center rounded-full z-30 shadow-[0_4px_6px_rgba(0,0,0,0.3)] text-white"
+                        style={{
+                            top: '-6px', left: '-6px',
+                            width: '28px', height: '28px',
+                            backgroundColor: '#6366f1',
+                            border: '2px solid rgba(255, 255, 255, 0.2)',
+                            fontSize: '12px', fontWeight: 900
+                        }}
+                        >
+                        {formData.cost}
+                        </div>
+
+                        <div 
+                        className="absolute right-0 uppercase z-30 text-indigo-200"
+                        style={{ top: '2px', padding: '2px 6px', fontSize: '8px', fontWeight: 700 }}
+                        >
+                        {formData.rarity}
+                        </div>
+
+                        <div className="flex-1 flex flex-col items-center justify-center w-full mt-2 relative overflow-hidden pointer-events-none">
+                        <div 
+                            className="flex items-center justify-center relative overflow-hidden bg-[#1a1825]"
+                            style={{
+                            width: '200px', height: '200px',
+                            borderRadius: '50px',
+                            border: '1px solid rgba(255,255,255,0.05)'
+                            }}
+                        >
+                            <div className="absolute inset-0 opacity-10 flex flex-wrap gap-2 p-2">
+                            {[...Array(9)].map((_, i) => <Sparkles key={i} className="w-full h-full text-white" />)}
+                            </div>
+                            <span className="text-[#3f3b52] font-black tracking-widest uppercase text-xs rotate-[-30deg]">Asset Missing</span>
+                        </div>
+                        <div className="text-[11px] font-black text-center leading-tight uppercase px-1 mt-2 text-white line-clamp-1 w-[90%]">
+                            {formData.name}
+                        </div>
+                        </div>
+
+                        <div 
+                        className="text-center w-[85%] mt-auto mb-2 block overflow-y-auto hide-scrollbar"
+                        style={{
+                            fontSize: '11px',
+                            color: '#a78bfa',
+                            fontWeight: 'bold',
+                            padding: '4px 6px',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            borderRadius: '4px',
+                            lineHeight: '1.3',
+                            height: '80px',
+                        }}
+                        >
+                        {renderDescription(formData.description)}
+                        </div>
+
+                        <div 
+                        className="absolute flex items-center justify-center z-20 text-white"
+                        style={{
+                            bottom: '-4px', left: '-4px',
+                            width: '26px', height: '26px',
+                            backgroundColor: '#ef4444',
+                            borderRadius: '5px',
+                            fontSize: '10px', fontWeight: 800
+                        }}
+                        >
+                        {formData.atk}
+                        </div>
+
+                        <div 
+                        className="absolute flex items-center justify-center z-20 text-white"
+                        style={{
+                            bottom: '-4px', right: '-4px',
+                            width: '26px', height: '26px',
+                            backgroundColor: '#22c55e',
+                            borderRadius: '5px',
+                            fontSize: '10px', fontWeight: 800
+                        }}
+                        >
+                        {formData.hp}
+                        </div>
+                    </div>
+                    </section>
+                </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
