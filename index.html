@@ -27,9 +27,9 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- Inline Icons (Replacing lucide-react for standalone HTML support) ---
-        const Icon = ({ children, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        // --- Inline Icons ---
+        const Icon = ({ children, className = "", onClick }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" onClick={onClick} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 {children}
             </svg>
         );
@@ -41,6 +41,7 @@
         const Shield = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Icon>;
         const Crosshair = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></Icon>;
         const X = (p) => <Icon {...p}><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></Icon>;
+        const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12"/></Icon>;
         const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></Icon>;
 
         // --- App Configuration ---
@@ -52,6 +53,15 @@
             LEGENDARY: '#f59e0b',
         };
 
+        const FALLBACK_CARDS = [
+            { "name": "Diana Bullen", "atk": 2, "hp": 4, "cost": 3, "rarity": "LEGENDARY", "ability": "guard", "series": "New Haven", "description": "£{''The more Diana experimented, the more ability she got.''}£ --- /lightgreen/Guard/ that gains /darkred/+2 atk/ at the end of each turn.", "abilities": { "onTurnEnd": [ { "type": "attackUpSelf", "value": 2 } ] } },
+            { "name": "Natalie Bergeron", "atk": 2, "hp": 2, "cost": 1, "rarity": "EPIC", "ability": "haste", "series": "New Haven", "description": "/darkred/Fast attacker/ that can strike immediately when played, also heals all allies with /lightgreen/2 hp/.", "abilities": { "onPlay": [ { "type": "healAllies", "value": 3 } ] } },
+            { "name": "Joseph", "atk": 1, "hp": 2, "cost": 1, "rarity": "RARE", "ability": "berserk", "series": "New Haven", "description": "When played will deal /darkred/1 damage/ to all enemies. Will deal /darkred/2 dmg/ if /white/Natalie/ or /white/Jane/ is in play.", "abilities": { "onPlay": [{ "type": "dealDamageAllEnemies", "value": "1 + context.scenario" }], "scenario": { "type": "or", "cards": ["Natalie Bergeron", "Jane"], "positive": 1, "negative": 0 } } },
+            { "name": "Jane", "atk": 2, "hp": 4, "cost": 1, "rarity": "EPIC", "ability": "snipe", "series": "New Haven", "description": "When played, reduces the cost of every /yellow/New Haven/ card in your hand by /white/2/ #cost#!", "abilities": { "onPlay": [ { "type": "discountHandBySeries", "series": "New Haven", "value": 2 } ] } },
+            { "name": "Quinta Valentine", "atk": 4, "hp": 2, "cost": 3, "rarity": "RARE", "ability": "snipe", "series": "New Haven", "description": "£{If Quinta knows she's got easy prey, she **/red/strikes/**!}£ /n---/n _10px_Deals 3 damage to all enemies if there's 2 or less enemies._", "abilities": { "scenario": { "type": "unitCount", "side": "enemy", "operator": "less", "threshold": 3, "positive": 1, "negative": 0 }, "onPlay": [ { "type": "dealDamageAllEnemies", "value": 3 } ] } },
+            { "name": "Clara Garcia", "atk": 2, "hp": 6, "cost": 4, "rarity": "UNCOMMON", "ability": "guard", "series": "New Haven", "description": "A /green/guard/ that will tank hits, if Cheetor is played before this Clara will gain /lightgreen/+3 hp/.", "abilities": { "onPlay": [ { "type": "hpUpSelf", "value": "context.scenario * 3", "scenario": { "type": "or", "cards": ["Cheetor"], "positive": 1, "negative": 0 } } ] } }
+        ];
+
         const DEFAULT_CARD = {
             name: 'New Unit',
             atk: 1,
@@ -60,12 +70,23 @@
             rarity: 'COMMON',
             series: 'Original',
             ability: 'none',
-            description: "£{A mysterious entity.}£ --- /lightgreen/Guard/ that gains /red/+1 atk/.",
-            scenario: {
+            description: "",
+            // UI Specific State (Mapped safely to JSON output)
+            abilities: {
                 active: false,
-                type: 'or',
-                side: 'player',
-                cards: []
+                trigger: 'onPlay',
+                effectType: 'healAllies',
+                effectValue: 1,
+                effectSeries: '', // For effects that check series
+                hasScenario: false,
+                scenario: {
+                    type: 'or',
+                    side: 'player',
+                    operator: 'less',
+                    threshold: 3,
+                    value: 1, // multiplier for "each"
+                    cards: []
+                }
             }
         };
 
@@ -74,8 +95,6 @@
             const [searchQuery, setSearchQuery] = useState('');
             const [loading, setLoading] = useState(true);
             const [scenarioInput, setScenarioInput] = useState('');
-            const [showNewSeriesBox, setShowNewSeriesBox] = useState(false);
-            const [newSeriesName, setNewSeriesName] = useState('');
             
             const [formData, setFormData] = useState(DEFAULT_CARD);
 
@@ -92,10 +111,7 @@
                 })
                 .catch(err => {
                     console.log("Using fallback cards. cards.json not found or blocked by CORS.");
-                    setCards([
-                        { name: "Diana Bullen", atk: 2, hp: 4, cost: 3, rarity: "LEGENDARY", series: "New Haven", description: "£{''The more Diana experimented, the more ability she got.''}£ --- /lightgreen/Guard/ that gains /darkred/+2 atk/ at the end of each turn." },
-                        { name: "Joseph", atk: 1, hp: 2, cost: 1, rarity: "RARE", series: "New Haven", description: "When played will deal /darkred/1 damage/ to all enemies." }
-                    ]);
+                    setCards(FALLBACK_CARDS);
                     setLoading(false);
                 });
             }, []);
@@ -109,11 +125,46 @@
                 return Array.from(sets);
             }, [cards]);
 
+            // Safely parse incoming complex JSON into our UI Form state
             const handleSelectTemplate = (card) => {
+                // Deep copy so nested scenario state doesn't mutate defaults
+                let parsedAbilities = JSON.parse(JSON.stringify(DEFAULT_CARD.abilities));
+                
+                if (card.abilities) {
+                    parsedAbilities.active = true;
+                    // Find the primary trigger (ignoring root 'scenario' keys)
+                    const triggerKey = Object.keys(card.abilities).find(k => k !== 'scenario');
+                    
+                    if (triggerKey && Array.isArray(card.abilities[triggerKey])) {
+                        parsedAbilities.trigger = triggerKey;
+                        const effect = card.abilities[triggerKey][0];
+                        
+                        if (effect) {
+                            parsedAbilities.effectType = effect.type || 'healAllies';
+                            parsedAbilities.effectValue = effect.value !== undefined ? effect.value : (effect.damage !== undefined ? effect.damage : (effect.amount || 0));
+                            parsedAbilities.effectSeries = effect.series || '';
+                            
+                            // Check if scenario is embedded in effect or at root
+                            const scenarioData = effect.scenario || card.abilities.scenario;
+                            if (scenarioData) {
+                                parsedAbilities.hasScenario = true;
+                                parsedAbilities.scenario = {
+                                    type: scenarioData.type || 'or',
+                                    side: scenarioData.side || 'player',
+                                    operator: scenarioData.operator || 'less',
+                                    threshold: scenarioData.threshold || 3,
+                                    value: scenarioData.value || 1,
+                                    cards: scenarioData.cards || scenarioData.cardNames || []
+                                };
+                            }
+                        }
+                    }
+                }
+
                 setFormData({
                     ...DEFAULT_CARD,
                     ...card,
-                    scenario: card.abilities?.scenario || { active: false, type: 'or', side: 'player', cards: [] },
+                    abilities: parsedAbilities,
                     description: card.description || ""
                 });
             };
@@ -136,76 +187,112 @@
             const handleScenarioChange = (field, value) => {
                 setFormData(prev => ({
                     ...prev,
-                    scenario: { ...prev.scenario, [field]: value }
+                    abilities: {
+                        ...prev.abilities,
+                        scenario: { ...prev.abilities.scenario, [field]: value }
+                    }
                 }));
             };
 
             const addScenarioCard = (e) => {
                 e.preventDefault();
-                if (scenarioInput.trim() && !formData.scenario.cards.includes(scenarioInput.trim())) {
-                    handleScenarioChange('cards', [...formData.scenario.cards, scenarioInput.trim()]);
+                if (scenarioInput.trim() && !formData.abilities.scenario.cards.includes(scenarioInput.trim())) {
+                    handleScenarioChange('cards', [...formData.abilities.scenario.cards, scenarioInput.trim()]);
                     setScenarioInput('');
                 }
             };
 
             const removeScenarioCard = (nameToRemove) => {
-                handleScenarioChange('cards', formData.scenario.cards.filter(n => n !== nameToRemove));
+                handleScenarioChange('cards', formData.abilities.scenario.cards.filter(n => n !== nameToRemove));
             };
+
+            // Generate clean, bug-free JSON object based on UI state (Synced with scripts.js logic)
+            const generatedJSON = useMemo(() => {
+                const out = {
+                    name: formData.name,
+                    atk: formData.atk,
+                    hp: formData.hp,
+                    cost: formData.cost,
+                    rarity: formData.rarity,
+                    ability: formData.ability || "none",
+                    series: formData.series,
+                    description: formData.description
+                };
+
+                if (formData.abilities && formData.abilities.active) {
+                    const effectObj = { type: formData.abilities.effectType };
+                    
+                    // Add Series if it's required for the specific effect
+                    if (['discountHandBySeries', 'valuePerSeriesInEnemyBoard'].includes(formData.abilities.effectType)) {
+                        effectObj.series = formData.abilities.effectSeries;
+                    }
+                    
+                    // Parse value to number if possible, otherwise string (like "1 + context.scenario")
+                    if (formData.abilities.effectValue !== '' && formData.abilities.effectValue !== null) {
+                        const numVal = Number(formData.abilities.effectValue);
+                        effectObj.value = isNaN(numVal) ? formData.abilities.effectValue : numVal;
+                    }
+
+                    if (formData.abilities.hasScenario) {
+                        const s = formData.abilities.scenario;
+                        const scenObj = { type: s.type };
+                        
+                        if (s.type === 'unitCount') {
+                            scenObj.side = s.side;
+                            scenObj.operator = s.operator;
+                            scenObj.threshold = Number(s.threshold);
+                            scenObj.positive = 1;
+                            scenObj.negative = 0;
+                        } else {
+                            scenObj.cards = s.cards;
+                            if (s.type === 'each') {
+                                scenObj.value = Number(s.value) || 1;
+                            } else {
+                                scenObj.positive = 1;
+                                scenObj.negative = 0;
+                            }
+                        }
+                        effectObj.scenario = scenObj; // Attach securely inside effect
+                    }
+
+                    out.abilities = {
+                        [formData.abilities.trigger]: [ effectObj ]
+                    };
+                }
+                
+                return JSON.stringify(out, null, 4);
+            }, [formData]);
 
             const renderDescription = (text) => {
                 if (!text) return <span className="opacity-40 italic">No special abilities.</span>;
                 
-                // First, split by /n to handle manual new lines
                 const lines = text.split(/\/n/g);
                 
                 return lines.map((line, lineIndex) => {
-                    // Handle the Full Line Separator (---)
                     if (line.trim() === '---') {
                         return <div key={`hr-${lineIndex}`} className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-2" />;
                     }
 
-                    // Regex for all our tags:
-                    // 1. £{italics}£
-                    // 2. /color/text/
-                    // 3. **glow**
-                    // 4. _size_text_
-                    // 5. [rainbow]text[/rainbow]
-                    // 6. {shake}text{/shake}
-                    // 7. #icon# (atk, hp, cost)
                     const tokens = line.split(/(£\{.+?\}£|\/[a-z#0-9]+\/.*?\/|\*\*.*?\*\*|_\d+px_.*?_|\[rainbow\].*?\[\/rainbow\]|\{shake\}.*?\{\/shake\}|#[a-z]+#)/g).filter(Boolean);
                     
                     return (
                         <div key={`line-${lineIndex}`} className="min-h-[1.2em] mb-1">
                             {tokens.map((token, i) => {
-                                // £{Italics}£
                                 if (token.startsWith('£{')) return <span key={i} className="italic opacity-80 text-[0.9em]">{token.slice(2, -2)}</span>;
-                                
-                                // /color/Text/
                                 if (token.startsWith('/') && token.endsWith('/')) {
                                     const parts = token.split('/');
                                     return <span key={i} style={{ color: parts[1] }} className="font-bold">{parts[2]}</span>;
                                 }
-                                
-                                // **Bold & Glow**
                                 if (token.startsWith('**')) return <span key={i} className="font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.5)', letterSpacing: '0.02em' }}>{token.slice(2, -2)}</span>;
-                                
-                                // _20px_Sized Text_
                                 if (token.startsWith('_')) {
                                     const match = token.match(/_(\d+px)_(.*?)_/);
                                     if (match) return <span key={i} style={{ fontSize: match[1] }}>{match[2]}</span>;
                                 }
-
-                                // [rainbow]Animated[/rainbow]
                                 if (token.startsWith('[rainbow]')) return <span key={i} className="animate-pulse font-black" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{token.slice(9, -10)}</span>;
-
-                                // {shake}Effect{/shake}
                                 if (token.startsWith('{shake}')) return <span key={i} className="inline-block animate-bounce text-red-400">{token.slice(7, -8)}</span>;
-
-                                // #icon#
                                 if (token === '#atk#') return <Swords key={i} className="inline w-3 h-3 mb-1 text-red-500" />;
                                 if (token === '#hp#') return <Shield key={i} className="inline w-3 h-3 mb-1 text-green-500" />;
                                 if (token === '#cost#') return <Zap key={i} className="inline w-3 h-3 mb-1 text-indigo-400" />;
-
                                 return token;
                             })}
                         </div>
@@ -223,7 +310,7 @@
                     <p className="text-indigo-200/50 font-medium">Design and visualize your legendary collection</p>
                     </div>
                     
-                    <div className="relative group">
+                    <div className="relative group z-50">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                     <input 
                         type="text"
@@ -240,8 +327,8 @@
                             <button
                                 key={i}
                                 onClick={() => {
-                                handleSelectTemplate(c);
-                                setSearchQuery('');
+                                    handleSelectTemplate(c);
+                                    setSearchQuery('');
                                 }}
                                 className="w-full text-left px-4 py-3 hover:bg-indigo-500/20 flex items-center justify-between border-b border-white/5 last:border-0 transition-colors"
                             >
@@ -296,140 +383,53 @@
 
                         <div className="relative">
                             <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase">Series</label>
-                            
-                            {/* Freeform Input */}
                             <input 
                                 type="text"
                                 name="series"
                                 value={formData.series}
                                 onChange={handleInputChange}
                                 onFocus={() => document.getElementById('custom-dropdown')?.classList.remove('hidden')}
-                                onBlur={() => {
-                                // Small timeout to allow click events on the dropdown to fire before it hides
-                                setTimeout(() => document.getElementById('custom-dropdown')?.classList.add('hidden'), 200);
-                                }}
+                                onBlur={() => setTimeout(() => document.getElementById('custom-dropdown')?.classList.add('hidden'), 200)}
                                 placeholder="Type or select a series..."
                                 className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium border"
                                 style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
                             />
-
-                            {/* Styled Custom Dropdown */}
-                            <div 
-                                id="custom-dropdown"
-                                className="hidden absolute left-0 right-0 mt-2 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto border border-white/10 backdrop-blur-xl" 
-                                style={{ backgroundColor: '#13111c' }}
-                            >
-                                {/* Always show "Original" as the first choice */}
-                                <button
-                                type="button"
-                                onClick={() => {
-                                    setFormData(prev => ({ ...prev, series: 'Original' }));
-                                    document.getElementById('custom-dropdown')?.classList.add('hidden');
-                                }}
-                                className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5"
-                                >
-                                Original
-                                </button>
-
-                                {/* Map through the rest of the existing series */}
-                                {seriesOptions
-                                .filter(s => s !== 'Original' && s.toLowerCase().includes((formData.series || '').toLowerCase()))
-                                .map((s, i) => (
-                                    <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => {
-                                        setFormData(prev => ({ ...prev, series: s }));
-                                        document.getElementById('custom-dropdown')?.classList.add('hidden');
-                                    }}
-                                    className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5 last:border-0"
-                                    >
-                                    {s}
-                                    </button>
+                            <div id="custom-dropdown" className="hidden absolute left-0 right-0 mt-2 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto border border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#13111c' }}>
+                                <button type="button" onClick={() => { setFormData(prev => ({ ...prev, series: 'Original' })); document.getElementById('custom-dropdown')?.classList.add('hidden'); }} className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5">Original</button>
+                                {seriesOptions.filter(s => s !== 'Original' && s.toLowerCase().includes((formData.series || '').toLowerCase())).map((s, i) => (
+                                    <button key={i} type="button" onClick={() => { setFormData(prev => ({ ...prev, series: s })); document.getElementById('custom-dropdown')?.classList.add('hidden'); }} className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5 last:border-0">{s}</button>
                                 ))}
                             </div>
                         </div>
                         
                         <div className="col-span-full mb-4 p-4 rounded-xl border border-white/5 bg-white/5">
                             <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <Sparkles className="w-3 h-3" /> Stylization Guide (Click to add to description)
+                                <Sparkles className="w-3 h-3" /> Stylization Guide (Click to insert)
                             </h4>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[10px] font-medium text-slate-400">
-                                
-                                {/* Color Text */}
-                                <div 
-                                    onClick={() => insertToDescription('/red/Text/')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">/red/Text/</code>
-                                    <span className="text-xs font-bold text-red-500">Text</span>
+                                <div onClick={() => insertToDescription('/red/Text/')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">/red/Text/</code><span className="text-xs font-bold text-red-500">Text</span>
                                 </div>
-                                
-                                {/* Bold Glow */}
-                                <div 
-                                    onClick={() => insertToDescription('**Text**')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">**Text**</code>
-                                    <span className="text-xs font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.6)' }}>Text</span>
+                                <div onClick={() => insertToDescription('**Text**')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">**Text**</code><span className="text-xs font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.6)' }}>Text</span>
                                 </div>
-                                
-                                {/* Custom Size */}
-                                <div 
-                                    onClick={() => insertToDescription('_16px_Text_')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">_16px_Text_</code>
-                                    <span style={{ fontSize: '16px' }} className="font-bold text-white">Text</span>
+                                <div onClick={() => insertToDescription('_16px_Text_')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">_16px_Text_</code><span style={{ fontSize: '16px' }} className="font-bold text-white">Text</span>
                                 </div>
-
-                                {/* Small Italics */}
-                                <div 
-                                    onClick={() => insertToDescription('£{Text}£')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">£{'{Text}'}£</code>
-                                    <span className="text-xs italic text-white/70">Text</span>
+                                <div onClick={() => insertToDescription('£{Text}£')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">£{'{Text}'}£</code><span className="text-xs italic text-white/70">Text</span>
                                 </div>
-                                
-                                {/* Full Width Line */}
-                                <div 
-                                    onClick={() => insertToDescription('/n---/n')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">/n---/n</code>
-                                    <div className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-1" />
+                                <div onClick={() => insertToDescription('/n---/n')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">/n---/n</code><div className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-1" />
                                 </div>
-                                
-                                {/* Animated Rainbow */}
-                                <div 
-                                    onClick={() => insertToDescription('[rainbow]Text[/rainbow]')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">[rainbow]Text[/rainbow]</code>
-                                    <span className="text-xs font-black animate-pulse" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Text</span>
+                                <div onClick={() => insertToDescription('[rainbow]Text[/rainbow]')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">[rainbow]Text[/rainbow]</code><span className="text-xs font-black animate-pulse" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Text</span>
                                 </div>
-                                
-                                {/* Shaking Text */}
-                                <div 
-                                    onClick={() => insertToDescription('{shake}Text{/shake}')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">{'{shake}Text{/shake}'}</code>
-                                    <span className="text-xs font-bold inline-block animate-bounce text-red-400">Text</span>
+                                <div onClick={() => insertToDescription('{shake}Text{/shake}')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">{'{shake}Text{/shake}'}</code><span className="text-xs font-bold inline-block animate-bounce text-red-400">Text</span>
                                 </div>
-                                
-                                {/* Dynamic Icons */}
-                                <div 
-                                    onClick={() => insertToDescription('#atk# #hp# #cost#')}
-                                    className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all"
-                                >
-                                    <code className="text-indigo-400 text-[9px]">#atk# #hp# #cost#</code>
-                                    <div className="flex items-center gap-2">
-                                        <Swords className="w-3.5 h-3.5 text-red-500" />
-                                        <Shield className="w-3.5 h-3.5 text-green-500" />
-                                        <Zap className="w-3.5 h-3.5 text-indigo-400" />
-                                    </div>
+                                <div onClick={() => insertToDescription('#atk# #hp# #cost#')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-indigo-400 text-[9px]">#atk# #hp# #cost#</code><div className="flex items-center gap-2"><Swords className="w-3.5 h-3.5 text-red-500" /><Shield className="w-3.5 h-3.5 text-green-500" /><Zap className="w-3.5 h-3.5 text-indigo-400" /></div>
                                 </div>
                             </div>
                         </div>
@@ -437,7 +437,7 @@
                         <div className="col-span-full">
                         <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase flex items-center justify-between">
                             <span>Description Text</span>
-                            <span className="text-[10px] text-indigo-400 lowercase">For Json behaviour please keep this in one line and use /n when needed</span>
+                            <span className="text-[10px] text-indigo-400 lowercase">Use /n for newlines</span>
                         </label>
                         <textarea 
                             name="description"
@@ -450,95 +450,182 @@
                         </div>
                     </div>
 
-                    <div className="col-span-full mt-8 p-5 rounded-2xl border" style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.05)' }}>
-                        <div className="flex items-center justify-between mb-4">
-                        <label className="text-sm font-bold text-indigo-300 uppercase flex items-center gap-2">
-                            <Crosshair className="w-4 h-4" /> Condition Scenario
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" checked={formData.scenario.active} onChange={(e) => handleScenarioChange('active', e.target.checked)} />
-                            <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full relative"></div>
-                        </label>
-                        </div>
-
-                        {formData.scenario.active && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                            <div className="space-y-4">
+                    <div className="col-span-full mt-6 p-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
+                        <div className="flex items-center justify-between mb-6">
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Rule Type</label>
-                                <div className="flex bg-black/40 rounded-lg p-1 border border-white/5">
-                                {['or', 'and', 'each'].map(type => (
-                                    <button key={type} onClick={() => handleScenarioChange('type', type)}
-                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${formData.scenario.type === type ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
-                                    {type}
-                                    </button>
-                                ))}
-                                </div>
+                                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                    <Zap className="w-5 h-5 text-yellow-400" /> Ability Engine
+                                </h3>
+                                <p className="text-xs text-slate-400 font-medium">Define complex logic mapped precisely to scripts.js</p>
                             </div>
-
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Board</label>
-                                <div className="flex bg-black/40 rounded-lg p-1 border border-white/5">
-                                <button onClick={() => handleScenarioChange('side', 'player')}
-                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${formData.scenario.side === 'player' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
-                                    Player Side
-                                </button>
-                                <button onClick={() => handleScenarioChange('side', 'enemy')}
-                                    className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${formData.scenario.side === 'enemy' ? 'bg-red-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}>
-                                    Enemy Side
-                                </button>
-                                </div>
-                            </div>
-                            </div>
-
-                            <div className="flex flex-col h-full">
-                            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Required Characters</label>
-                            <form onSubmit={addScenarioCard} className="flex gap-2 mb-2">
+                            <label className="relative inline-flex items-center cursor-pointer">
                                 <input 
-                                list="card-names"
-                                value={scenarioInput}
-                                onChange={(e) => setScenarioInput(e.target.value)}
-                                placeholder="Type a character name..."
-                                className="flex-1 px-3 py-2 text-sm rounded-lg bg-black/40 border border-white/10 text-white focus:outline-none focus:border-indigo-500"
+                                    type="checkbox" 
+                                    className="sr-only peer"
+                                    checked={formData.abilities?.active || false}
+                                    onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, active: e.target.checked}})}
                                 />
-                                <datalist id="card-names">
-                                {cards.map((c, idx) => <option key={idx} value={c.name} />)}
-                                </datalist>
-                                <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg font-bold text-sm transition-colors">
-                                Add
-                                </button>
-                            </form>
-                            
-                            <div className="flex-1 bg-black/20 border border-white/5 rounded-lg p-2 min-h-[80px] flex flex-wrap gap-2 items-start content-start">
-                                {formData.scenario.cards.length === 0 ? (
-                                <span className="text-xs text-slate-500 italic w-full text-center mt-2">No characters added</span>
-                                ) : (
-                                formData.scenario.cards.map((name, idx) => (
-                                    <div key={idx} className="bg-indigo-500/20 border border-indigo-500/30 text-indigo-200 text-xs px-2 py-1 rounded-md flex items-center gap-1.5">
-                                    {name}
-                                    <button onClick={() => removeScenarioCard(name)} className="hover:text-red-400 transition-colors"><X className="w-3 h-3" /></button>
-                                    </div>
-                                ))
-                                )}
-                            </div>
-                            </div>
+                                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
                         </div>
+
+                        {formData.abilities?.active && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in zoom-in-95 duration-200">
+                                
+                                {/* 1. LOGIC TRIGGER & SCENARIO */}
+                                <div className="space-y-4 p-4 rounded-xl bg-black/20 border border-white/5">
+                                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center justify-between">
+                                        <span>1. Trigger & Condition</span>
+                                    </label>
+                                    
+                                    <select 
+                                        value={formData.abilities?.trigger}
+                                        onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, trigger: e.target.value}})}
+                                        className="w-full bg-black/40 border border-white/10 text-white text-xs p-2.5 rounded-lg mb-4 outline-none focus:border-indigo-500 font-bold"
+                                    >
+                                        <option value="onPlay">When Played (onPlay)</option>
+                                        <option value="onTurnEnd">End of Turn (onTurnEnd)</option>
+                                        <option value="onAttack">When Attacking (onAttack)</option>
+                                        <option value="onDeath">When Destroyed (onDeath)</option>
+                                    </select>
+
+                                    <div className="pt-2 border-t border-white/10 mt-4">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-300 mb-3 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={formData.abilities.hasScenario}
+                                                onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, hasScenario: e.target.checked}})}
+                                                className="rounded border-white/20 bg-black/40 text-indigo-500 focus:ring-indigo-500"
+                                            />
+                                            Require Specific Scenario / Condition
+                                        </label>
+                                        
+                                        {formData.abilities.hasScenario && (
+                                            <div className="space-y-3 pl-6 border-l-2 border-indigo-500/30">
+                                                <select 
+                                                    value={formData.abilities.scenario.type} 
+                                                    onChange={(e) => handleScenarioChange('type', e.target.value)} 
+                                                    className="w-full bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none"
+                                                >
+                                                    <option value="or">Any of these cards present (OR)</option>
+                                                    <option value="and">All of these cards present (AND)</option>
+                                                    <option value="each">For each card present (EACH)</option>
+                                                    <option value="unitCount">Board Unit Count</option>
+                                                </select>
+
+                                                {formData.abilities.scenario.type === 'unitCount' ? (
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <select value={formData.abilities.scenario.side} onChange={(e) => handleScenarioChange('side', e.target.value)} className="bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none">
+                                                            <option value="enemy">Enemy</option>
+                                                            <option value="player">Player</option>
+                                                        </select>
+                                                        <select value={formData.abilities.scenario.operator} onChange={(e) => handleScenarioChange('operator', e.target.value)} className="bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none">
+                                                            <option value="less">Less Than</option>
+                                                            <option value="greater">Greater Than</option>
+                                                            <option value="equal">Equal To</option>
+                                                        </select>
+                                                        <input type="number" placeholder="Count" value={formData.abilities.scenario.threshold} onChange={(e) => handleScenarioChange('threshold', e.target.value)} className="bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none" />
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex gap-2">
+                                                            <input type="text" placeholder="Add required card name..." value={scenarioInput} onChange={(e) => setScenarioInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addScenarioCard(e)} className="flex-1 bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none focus:border-indigo-500" />
+                                                            <button onClick={addScenarioCard} className="p-2 bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors"><Check className="w-4 h-4 text-white" /></button>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {formData.abilities.scenario.cards.map(card => (
+                                                                <span key={card} className="px-2 py-1 bg-indigo-500/20 border border-indigo-500/30 rounded text-[10px] text-indigo-200 flex items-center gap-1 font-bold">
+                                                                    {card} <X className="w-3 h-3 cursor-pointer hover:text-white" onClick={() => removeScenarioCard(card)} />
+                                                                </span>
+                                                            ))}
+                                                        </div>
+
+                                                        {formData.abilities.scenario.type === 'each' && (
+                                                            <div className="flex items-center gap-2 mt-2 bg-indigo-500/10 p-2 rounded border border-indigo-500/20">
+                                                                <span className="text-[10px] font-bold text-indigo-300 uppercase">Multiplier Value:</span>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={formData.abilities.scenario.value}
+                                                                    onChange={(e) => handleScenarioChange('value', e.target.value)}
+                                                                    className="w-16 bg-black/40 border border-white/10 text-white text-xs p-1 rounded outline-none text-center"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* 2. EFFECT OUTCOME */}
+                                <div className="space-y-4 p-4 rounded-xl bg-black/20 border border-white/5">
+                                    <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">2. Effect Outcome</label>
+                                    
+                                    <select 
+                                        value={formData.abilities.effectType}
+                                        onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, effectType: e.target.value}})}
+                                        className="w-full bg-black/40 border border-white/10 text-white text-xs p-2.5 rounded-lg outline-none focus:border-emerald-500 font-bold"
+                                    >
+                                        <option value="healAllies">Heal Allies (Board)</option>
+                                        <option value="healNexus">Heal Nexus</option>
+                                        <option value="healSelf">Heal Self</option>
+                                        <option value="hpUpSelf">Max HP Up (Self)</option>
+                                        <option value="attackUpSelf">Atk Up (Self)</option>
+                                        <option value="dealDamageAllEnemies">Damage All Enemies</option>
+                                        <option value="splashAdjacent">Splash Damage (Adjacent)</option>
+                                        <option value="snipeDamage">Snipe Damage</option>
+                                        <option value="berserkOverflow">Berserk Nexus Damage</option>
+                                        <option value="silenceTarget">Silence Target</option>
+                                        <option value="disableTarget">Disable Target</option>
+                                        <option value="drawCard">Draw Card(s)</option>
+                                        <option value="discountHandBySeries">Discount Hand (By Series)</option>
+                                        <option value="valuePerSeriesInEnemyBoard">Count Series on Enemy Board</option>
+                                    </select>
+
+                                    {['discountHandBySeries', 'valuePerSeriesInEnemyBoard'].includes(formData.abilities.effectType) && (
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Target Series:</span>
+                                            <input 
+                                                type="text" 
+                                                placeholder="e.g. New Haven"
+                                                value={formData.abilities.effectSeries}
+                                                onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, effectSeries: e.target.value}})}
+                                                className="flex-1 bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none focus:border-emerald-500"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Value / Expr:</span>
+                                        <input 
+                                            type="text" 
+                                            placeholder="e.g. 2 or context.scenario"
+                                            value={formData.abilities.effectValue}
+                                            onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, effectValue: e.target.value}})}
+                                            className="flex-1 bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none focus:border-emerald-500"
+                                        />
+                                    </div>
+                                    
+                                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[10px] text-emerald-300 italic leading-relaxed">
+                                        Logic: <span className="font-bold text-white uppercase">{formData.abilities?.trigger}</span> → Check Condition → Execute <span className="font-bold text-white uppercase">{formData.abilities.effectType}</span> (Val: {formData.abilities.effectValue}).
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </div>
 
                     <div className="col-span-full mt-8 pt-6 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
                         <div className="flex items-center justify-between mb-4">
                             <label className="text-sm font-bold text-indigo-300 uppercase flex items-center gap-2">
-                                <Layers className="w-4 h-4" /> JSON Output (Ready for cards.json)
+                                <Layers className="w-4 h-4" /> JSON Output
                             </label>
                             
                             <div className="flex gap-2">
                                 <button 
                                     onClick={() => {
-                                        const jsonText = document.getElementById('json-output-text').innerText;
-                                        navigator.clipboard.writeText(jsonText);
-                                        
-                                        // Small visual feedback on the button
+                                        navigator.clipboard.writeText(generatedJSON);
                                         const btn = document.getElementById('copy-btn');
                                         const originalText = btn.innerHTML;
                                         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
@@ -561,34 +648,14 @@
                             </div>
                         </div>
 
-                        {/* Live generated code block */}
+                        {/* Live generated code block that strictly outputs valid JSON */}
                         <div className="relative">
                             <pre 
                                 className="w-full p-4 rounded-xl text-xs font-mono text-indigo-200 overflow-x-auto border"
                                 style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderColor: 'rgba(255,255,255,0.05)' }}
                             >
                                 <code id="json-output-text">
-                    {`\`\`\`
-    {
-        "name": "${formData.name}",
-        "atk": ${formData.atk},
-        "hp": ${formData.hp},
-        "cost": ${formData.cost},
-        "rarity": "${formData.rarity}",
-        "ability": "${formData.ability || 'none'}",
-        "series": "${formData.series}",
-        "description": "${formData.description.replace(/"/g, '\\"')}"${formData.scenario.active ? `,
-        "abilities": {
-            "scenario": {
-            "type": "${formData.scenario.type}",
-            "side": "${formData.scenario.side}",
-            "cards": ${JSON.stringify(formData.scenario.cards)}
-            }
-        }
-    ` : ''}
-    },
-    
-\`\`\``}
+{generatedJSON}
                                 </code>
                             </pre>
                         </div>
