@@ -90,6 +90,13 @@
             }
         };
 
+        const TUTORIAL_STEPS = [
+            { title: "Welcome", content: "Design and generate JSON for custom cards." },
+            { title: "Stats", content: "Set Attack, Health, and Cost in the new input row." },
+            { title: "Limits", content: "Keep descriptions under 150 characters for the UI." },
+            { title: "Engine", content: "Toggle the Ability Engine to add logic like 'On Play: Heal'." }
+        ];
+
         const App = () => {
             const [cards, setCards] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
@@ -115,6 +122,24 @@
                     setLoading(false);
                 });
             }, []);
+
+            const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+            const [tutorialStep, setTutorialStep] = useState(0);
+
+            const handleAbilityToggle = () => {
+                setFormData(prev => ({
+                    ...prev,
+                    abilities: { ...prev.abilities, active: !prev.abilities.active }
+                }));
+            };
+
+            const handleAbilityChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({
+                    ...prev,
+                    abilities: { ...prev.abilities, [name]: value }
+                }));
+            };
 
             const filteredCards = useMemo(() => {
                 return cards.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -309,7 +334,6 @@
                     </h1>
                     <p className="text-indigo-200/50 font-medium">Design and visualize your legendary collection</p>
                     </div>
-                    
                     <div className="relative group z-50">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
                     <input 
@@ -401,6 +425,22 @@
                                 ))}
                             </div>
                         </div>
+
+                        <div className="grid grid-cols-3 gap-5">
+                            <div>
+                                <label className="block text-[10px] font-bold text-red-400 mb-1.5 uppercase">Atk</label>
+                                <input type="number" name="atk" value={formData.atk} onChange={handleInputChange} className="w-full px-3 py-3 bg-black/30 border border-white/10 rounded-xl focus:ring-2 focus:ring-red-500 outline-none text-center" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-green-400 mb-1.5 uppercase">HP</label>
+                                <input type="number" name="hp" value={formData.hp} onChange={handleInputChange} className="w-full px-3 py-3 bg-black/30 border border-white/10 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-center" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-indigo-400 mb-1.5 uppercase">Cost</label>
+                                <input type="number" name="cost" value={formData.cost} onChange={handleInputChange} className="w-full px-3 py-3 bg-black/30 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-center" />
+                            </div>
+                        </div>
+
                         
                         <div className="col-span-full mb-4 p-4 rounded-xl border border-white/5 bg-white/5">
                             <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -446,6 +486,7 @@
                             rows={4}
                             className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-y text-sm border"
                             style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                            placeholder="Describe the card's special abilities and effects here... (150 character limit recommended for best display)"
                         />
                         </div>
                     </div>
@@ -756,7 +797,7 @@
                             fontSize: '10px', fontWeight: 800
                         }}
                         >
-                        {formData.hp}
+                        {formData.def}
                         </div>
                     </div>
                     </section>
