@@ -288,6 +288,73 @@
                 return JSON.stringify(out, null, 4);
             }, [formData]);
 
+            const parseStylization = (text) => {
+                if (!text) return null;
+                
+                // Updated regex to include Links [[...]] and Hidden {{hidden}}...{{/hidden}}
+                const tokens = text.split(/\{\{hidden\}\}.*?\{\{\/hidden\}\}|(£\{.+?\}£|\/[a-z#0-9]+\/.*?\/|\*\*.*?\*\*|_\d+px_.*?_|\[rainbow\].*?\[\/rainbow\]|\{shake\}.*?\{\/shake\}|#(?!(?:hidden|link))[a-z]+#|\[\[.*?\]\]|)/g).filter(Boolean);
+                
+                return tokens.map((token, i) => {
+                    if (token.startsWith('[[') && token.endsWith(']]')) {
+                        const content = token.slice(2, -2);
+                        // Splitting by | in case you use the [[Display|Image]] format
+                        const [displayText] = content.split('|'); 
+                        return (
+                            <span key={i} className="text-[inherit] font-bold underline decoration-current underline-offset-2 opacity-80 border-b border-cyan-400/30">
+                                <span className="text-cyan-400 [[.hidden-wrapper_&]:text-transparent]">
+                                    {parseStylization(displayText)}
+                                </span>
+                            </span>
+                        );
+                    }
+
+                    if (token.startsWith('{{hidden}}') && token.endsWith('{{/hidden}}')) {
+                        return (
+                            <span 
+                                key={i} 
+                                className="hidden-wrapper bg-slate-800/50 hover:bg-transparent px-1 rounded transition-all duration-300 cursor-help group/hidden"
+                                title="Hover to reveal secret info"
+                            >
+                            <span className="text-transparent group-hover/hidden:text-slate-400 transition-colors">
+                                    {parseStylization(token.slice(8, -9))}
+                                </span>
+                            </span>
+                        );
+                    }
+
+                    // --- Existing Styles ---
+                    if (token.startsWith('£{') && token.endsWith('}£')) 
+                        return <span key={i} className="italic opacity-80 text-[0.9em]">{parseStylization(token.slice(2, -2))}</span>;
+                    
+                    if (token.startsWith('/') && token.endsWith('/')) {
+                        const match = token.match(/^\/([a-z#0-9]+)\/(.*)\/$/);
+                        if (match) return <span key={i} style={{ color: match[1] }} className="font-bold">{parseStylization(match[2])}</span>;
+                    }
+                    
+                    if (token.startsWith('**') && token.endsWith('**')) 
+                        return <span key={i} className="font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.5)', letterSpacing: '0.02em' }}>{parseStylization(token.slice(2, -2))}</span>;
+                    
+                    if (token.startsWith('_') && token.endsWith('_')) {
+                        const match = token.match(/^_(\d+px)_(.*)_$/);
+                        if (match) return <span key={i} style={{ fontSize: match[1] }}>{parseStylization(match[2])}</span>;
+                    }
+                    
+                    if (token.startsWith('[rainbow]') && token.endsWith('[/rainbow]')) 
+                        return <span key={i} className="animate-pulse font-black" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{parseStylization(token.slice(9, -10))}</span>;
+                    
+                    if (token.startsWith('{shake}') && token.endsWith('{/shake}')) 
+                        return <span key={i} className="inline-block animate-bounce text-red-400">{parseStylization(token.slice(7, -8))}</span>;
+                    
+                    // --- Icons ---
+                    if (token === '#atk#') return <Swords key={i} className="inline w-3 h-3 mb-1 text-red-500" />;
+                    if (token === '#hp#') return <Shield key={i} className="inline w-3 h-3 mb-1 text-green-500" />;
+                    if (token === '#cost#') return <Zap key={i} className="inline w-3 h-3 mb-1 text-indigo-400" />;
+                    
+                    return token;
+                });
+            };
+
+            // 2. Updated renderDescription that triggers the recursive parser
             const renderDescription = (text) => {
                 if (!text) return <span className="opacity-40 italic">No special abilities.</span>;
                 
@@ -298,28 +365,9 @@
                         return <div key={`hr-${lineIndex}`} className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-2" />;
                     }
 
-                    const tokens = line.split(/(£\{.+?\}£|\/[a-z#0-9]+\/.*?\/|\*\*.*?\*\*|_\d+px_.*?_|\[rainbow\].*?\[\/rainbow\]|\{shake\}.*?\{\/shake\}|#[a-z]+#)/g).filter(Boolean);
-                    
                     return (
                         <div key={`line-${lineIndex}`} className="min-h-[1.2em] mb-1">
-                            {tokens.map((token, i) => {
-                                if (token.startsWith('£{')) return <span key={i} className="italic opacity-80 text-[0.9em]">{token.slice(2, -2)}</span>;
-                                if (token.startsWith('/') && token.endsWith('/')) {
-                                    const parts = token.split('/');
-                                    return <span key={i} style={{ color: parts[1] }} className="font-bold">{parts[2]}</span>;
-                                }
-                                if (token.startsWith('**')) return <span key={i} className="font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.5)', letterSpacing: '0.02em' }}>{token.slice(2, -2)}</span>;
-                                if (token.startsWith('_')) {
-                                    const match = token.match(/_(\d+px)_(.*?)_/);
-                                    if (match) return <span key={i} style={{ fontSize: match[1] }}>{match[2]}</span>;
-                                }
-                                if (token.startsWith('[rainbow]')) return <span key={i} className="animate-pulse font-black" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{token.slice(9, -10)}</span>;
-                                if (token.startsWith('{shake}')) return <span key={i} className="inline-block animate-bounce text-red-400">{token.slice(7, -8)}</span>;
-                                if (token === '#atk#') return <Swords key={i} className="inline w-3 h-3 mb-1 text-red-500" />;
-                                if (token === '#hp#') return <Shield key={i} className="inline w-3 h-3 mb-1 text-green-500" />;
-                                if (token === '#cost#') return <Zap key={i} className="inline w-3 h-3 mb-1 text-indigo-400" />;
-                                return token;
-                            })}
+                            {parseStylization(line)}
                         </div>
                     );
                 });
@@ -470,6 +518,15 @@
                                 </div>
                                 <div onClick={() => insertToDescription('#atk# #hp# #cost#')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
                                     <code className="text-indigo-400 text-[9px]">#atk# #hp# #cost#</code><div className="flex items-center gap-2"><Swords className="w-3.5 h-3.5 text-red-500" /><Shield className="w-3.5 h-3.5 text-green-500" /><Zap className="w-3.5 h-3.5 text-indigo-400" /></div>
+                                </div>
+                                <div onClick={() => insertToDescription('[[Link]]')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-cyan-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-cyan-400 text-[9px]">[[Link]]</code>
+                                    <span className="text-[10px] text-cyan-400 font-bold underline">Lore</span>
+                                </div>
+
+                                <div onClick={() => insertToDescription('{{hidden}}Secret{{/hidden}}')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-slate-500/50 hover:bg-black/40 transition-all">
+                                    <code className="text-slate-400 text-[9px]">{"{{hidden}}Secret{{/hidden}})"}</code>
+                                    <div className="w-4 h-2 bg-slate-700 rounded-sm"></div>
                                 </div>
                             </div>
                         </div>
@@ -797,7 +854,7 @@
                             fontSize: '10px', fontWeight: 800
                         }}
                         >
-                        {formData.def}
+                        {formData.hp}
                         </div>
                     </div>
                     </section>
