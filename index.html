@@ -1,870 +1,1217 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cardsmith Maker</title>
-    
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Load React -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Load Babel for compiling JSX in the browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Exo+2:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg:#0a090f; --panel:#13111c; --border:rgba(255,255,255,.08);
+    --accent:#6366f1; --purple:#a855f7; --text:#f0eeff;
+    --muted:rgba(180,165,240,.5);
+    --COMMON:#64748b; --UNCOMMON:#10b981; --RARE:#3b82f6;
+    --EPIC:#a855f7; --LEGENDARY:#f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+    font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);
+    min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
+    padding:24px 16px 60px;
+}
+body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    background:
+        radial-gradient(ellipse 80% 50% at 15% 5%,rgba(99,102,241,.07) 0%,transparent 60%),
+        radial-gradient(ellipse 60% 70% at 85% 95%,rgba(168,85,247,.06) 0%,transparent 60%);
+}
+.wizard{position:relative;width:100%;max-width:960px;display:flex;flex-direction:column;gap:22px;padding-top:6px}
 
-    <style>
-        body { margin: 0; background-color: #0a090f; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
+/* steps bar */
+.steps-bar{display:flex;align-items:center}
+.step-conn{flex:1;height:2px;background:var(--border)}
+.step-pill{
+    display:flex;align-items:center;gap:7px;padding:7px 14px 7px 10px;
+    border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;cursor:pointer;border:1.5px solid transparent;
+    background:rgba(255,255,255,.03);color:var(--muted);transition:all .22s;white-space:nowrap;
+}
+.step-pill .n{
+    width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.07);
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;transition:all .22s;
+}
+.step-pill.active{background:rgba(99,102,241,.15);border-color:var(--accent);color:#fff}
+.step-pill.active .n{background:var(--accent);color:#fff}
+.step-pill.done{color:rgba(52,211,153,.9)}
+.step-pill.done .n{background:rgba(16,185,129,.2);color:#34d399}
+
+/* layout */
+.main-area{display:grid;grid-template-columns:1fr 248px;gap:22px;align-items:start}
+@media(max-width:640px){.main-area{grid-template-columns:1fr}.preview-col{order:-1}}
+
+/* panel */
+.step-panel{
+    background:var(--panel);border:1.5px solid var(--border);border-radius:16px;
+    padding:26px;display:none;flex-direction:column;gap:18px;
+    animation:fadeUp .3s cubic-bezier(.22,1,.36,1) both;
+}
+.step-panel.active{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.step-title{font-family:'Cinzel',serif;font-size:19px;color:#fff;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+.step-sub{font-size:12px;color:var(--muted);margin-top:-10px}
+
+/* fields */
+.field{display:flex;flex-direction:column;gap:6px}
+.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+input[type=text],input[type=number],textarea{
+    width:100%;background:rgba(255,255,255,.04);border:1.5px solid var(--border);
+    border-radius:9px;color:#fff;font-family:'Exo 2',sans-serif;font-size:14px;
+    padding:9px 13px;outline:none;transition:border-color .18s,box-shadow .18s;
+}
+input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+textarea{resize:vertical;min-height:76px;line-height:1.5}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+
+/* pills */
+.pill-grid{display:flex;flex-wrap:wrap;gap:7px}
+.pill{
+    padding:7px 13px;border-radius:8px;border:1.5px solid var(--border);
+    background:rgba(255,255,255,.03);color:var(--muted);
+    font-family:'Exo 2',sans-serif;font-weight:700;font-size:12px;
+    cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.pill:hover{color:#fff;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
+.pill.sel{color:#fff}
+.r-pill.sel[data-r=COMMON]   {border-color:var(--COMMON);background:rgba(100,116,139,.15);color:var(--COMMON)}
+.r-pill.sel[data-r=UNCOMMON] {border-color:var(--UNCOMMON);background:rgba(16,185,129,.12);color:var(--UNCOMMON)}
+.r-pill.sel[data-r=RARE]     {border-color:var(--RARE);background:rgba(59,130,246,.12);color:var(--RARE)}
+.r-pill.sel[data-r=EPIC]     {border-color:var(--EPIC);background:rgba(168,85,247,.12);color:var(--EPIC)}
+.r-pill.sel[data-r=LEGENDARY]{border-color:var(--LEGENDARY);background:rgba(245,158,11,.12);color:var(--LEGENDARY)}
+.a-pill.sel{border-color:var(--accent);background:rgba(99,102,241,.13);color:#a5b4fc}
+
+/* steppers */
+.stepper-group{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.stepper-wrap{display:flex;flex-direction:column;gap:6px}
+.stepper{display:flex;align-items:center;overflow:hidden;border:1.5px solid var(--border);border-radius:9px;background:rgba(255,255,255,.03)}
+.s-btn{width:36px;height:44px;background:rgba(255,255,255,.04);border:none;color:#fff;font-size:18px;cursor:pointer;transition:background .14s;font-family:monospace;flex-shrink:0}
+.s-btn:hover{background:rgba(99,102,241,.25)}
+.s-val{flex:1;text-align:center;font-size:22px;font-weight:900;color:#fff;border-left:1.5px solid var(--border);border-right:1.5px solid var(--border)}
+@keyframes statPop{0%,100%{transform:scale(1)}50%{transform:scale(1.45)}}
+.stat-pop{animation:statPop .22s cubic-bezier(.175,.885,.32,1.275)}
+
+/* chips */
+.chip-sect{display:flex;flex-direction:column;gap:5px}
+.chip-lbl{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:4px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{
+    padding:4px 10px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--border);
+    font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .14s;font-family:'Exo 2',sans-serif;
+}
+.chip:hover{background:rgba(99,102,241,.15);border-color:var(--accent);color:#fff}
+
+/* toggle */
+.toggle-row{
+    display:flex;align-items:center;justify-content:space-between;padding:12px 15px;
+    background:rgba(255,255,255,.03);border:1.5px solid var(--border);border-radius:10px;
+    cursor:pointer;transition:border-color .18s;
+}
+.toggle-row:hover,.toggle-row.on{border-color:rgba(99,102,241,.5)}
+.toggle-name{font-size:13px;font-weight:700}
+.toggle-hint{font-size:11px;color:var(--muted);margin-top:1px}
+.sw{width:42px;height:23px;border-radius:12px;background:rgba(255,255,255,.1);border:none;position:relative;cursor:pointer;transition:background .18s;flex-shrink:0}
+.sw::after{content:'';position:absolute;width:17px;height:17px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .18s}
+.sw.on{background:var(--accent)}
+.sw.on::after{transform:translateX(19px)}
+
+/* ability engine */
+.ae-body{
+    display:none;flex-direction:column;gap:16px;padding:18px;
+    background:rgba(99,102,241,.05);border:1.5px solid rgba(99,102,241,.18);
+    border-radius:12px;animation:fadeUp .28s ease both;
+}
+.ae-body.open{display:flex}
+
+/* trigger pills */
+.t-pill{
+    padding:7px 13px;border-radius:8px;border:1.5px solid var(--border);
+    background:rgba(255,255,255,.03);font-family:'Exo 2',sans-serif;
+    font-weight:700;font-size:11px;color:var(--muted);cursor:pointer;transition:all .15s;
+}
+.t-pill:hover{color:#fff;border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.08)}
+.t-pill.sel{border-color:var(--accent);background:rgba(99,102,241,.15);color:#a5b4fc}
+
+/* effect cards */
+.effect-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px}
+.eff-card{
+    padding:10px 12px;border-radius:9px;border:1.5px solid var(--border);
+    background:rgba(255,255,255,.03);cursor:pointer;transition:all .15s;
+    display:flex;flex-direction:column;gap:3px;
+}
+.eff-card:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.08)}
+.eff-card.sel{border-color:var(--accent);background:rgba(99,102,241,.15)}
+.eff-name{font-size:11px;font-weight:700;color:#c4b5fd}
+.eff-card.sel .eff-name{color:#a5b4fc}
+.eff-desc{font-size:10px;color:var(--muted);line-height:1.3}
+
+/* condition */
+.cond-block{
+    display:none;flex-direction:column;gap:12px;padding:15px;
+    background:rgba(168,85,247,.05);border:1.5px solid rgba(168,85,247,.18);
+    border-radius:10px;animation:fadeUp .25s ease both;
+}
+.cond-block.open{display:flex}
+.ct-pill{
+    padding:7px 13px;border-radius:8px;border:1.5px solid var(--border);
+    background:rgba(255,255,255,.03);font-family:'Exo 2',sans-serif;
+    font-weight:700;font-size:11px;color:var(--muted);cursor:pointer;transition:all .15s;
+}
+.ct-pill:hover{color:#fff;border-color:rgba(168,85,247,.4)}
+.ct-pill.sel{border-color:var(--purple);background:rgba(168,85,247,.13);color:#d8b4fe}
+.tag-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tag{
+    display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;
+    background:rgba(168,85,247,.18);border:1px solid rgba(168,85,247,.35);
+    font-size:12px;font-weight:600;color:#c084fc;
+}
+.tag-x{cursor:pointer;opacity:.6;font-size:15px;line-height:1}
+.tag-x:hover{opacity:1;color:#f87171}
+.card-add-row{display:flex;gap:8px}
+.card-add-row input{flex:1}
+.btn-sm{
+    padding:8px 14px;border-radius:8px;background:rgba(255,255,255,.05);
+    border:1.5px solid var(--border);color:var(--muted);
+    font-family:'Exo 2',sans-serif;font-weight:700;font-size:12px;
+    cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.btn-sm:hover{border-color:rgba(99,102,241,.4);color:#fff}
+
+/* check */
+.check-toggle{display:flex;align-items:center;gap:9px;cursor:pointer}
+.check-toggle input{display:none}
+.cbox{
+    width:17px;height:17px;border:2px solid var(--border);border-radius:4px;
+    background:rgba(255,255,255,.03);display:flex;align-items:center;
+    justify-content:center;transition:all .14s;flex-shrink:0;
+}
+.check-toggle input:checked+.cbox{background:var(--accent);border-color:var(--accent)}
+.check-toggle input:checked+.cbox::after{content:'☑️';font-size:10px;color:#fff;font-weight:900}
+.check-label{font-size:13px;font-weight:700;display:flex;align-items:center;gap:4px}
+
+/* tooltip */
+.tip-wrap{position:relative;display:inline-flex;align-items:center}
+.tip-icon{
+    width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12);display:inline-flex;align-items:center;
+    justify-content:center;font-size:10px;font-weight:900;color:var(--muted);
+    cursor:help;flex-shrink:0;transition:all .14s;
+}
+.tip-icon:hover{background:rgba(99,102,241,.25);color:#a5b4fc;border-color:var(--accent)}
+.tip-box{
+    display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+    width:270px;padding:10px 13px;border-radius:9px;
+    background:#1e1b2e;border:1.5px solid rgba(99,102,241,.3);
+    font-size:11px;line-height:1.55;color:rgba(200,190,255,.85);
+    z-index:500;box-shadow:0 8px 24px rgba(0,0,0,.6);pointer-events:none;white-space:normal;
+}
+.tip-box::after{
+    content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:#1e1b2e;
+}
+.tip-wrap:hover .tip-box{display:block}
+
+/* divider */
+.divider{height:1px;background:rgba(255,255,255,.06)}
+
+/* nav */
+.nav-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:4px;padding-top:6px}
+.btn{padding:10px 22px;border-radius:9px;font-family:'Exo 2',sans-serif;font-weight:700;font-size:13px;letter-spacing:.04em;cursor:pointer;border:1.5px solid transparent;transition:all .18s}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--muted)}
+.btn-ghost:hover{border-color:rgba(255,255,255,.25);color:#fff}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#4f52d4;box-shadow:0 0 18px rgba(99,102,241,.4)}
+.btn-success{background:#059669;color:#fff}
+.btn-success:hover{background:#047857;box-shadow:0 0 18px rgba(5,150,105,.4)}
+.btn-secondary{background:rgba(255,255,255,.05);border-color:var(--border);color:#fff}
+.btn-secondary:hover{border-color:rgba(99,102,241,.45);background:rgba(99,102,241,.14)}
+
+/* card preview */
+.preview-col{display:flex;flex-direction:column;align-items:center;gap:12px;position:sticky;top:24px}
+.preview-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.card{
+    width:230px;height:322px;background:#111;border-radius:10px;
+    border:2px solid var(--COMMON);position:relative;display:flex;flex-direction:column;
+    padding:6px;box-shadow:0 20px 40px rgba(0,0,0,.7);transition:border-color .4s,box-shadow .4s;
+    animation:cardIn .5s cubic-bezier(.175,.885,.32,1.275) both;
+}
+@keyframes cardIn{from{opacity:0;transform:scale(.82) rotate(-4deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes rflash{
+    0%{box-shadow:0 0 0 0 rgba(255,255,255,.5),0 20px 40px rgba(0,0,0,.7)}
+    50%{box-shadow:0 0 32px 12px rgba(255,255,255,0),0 20px 40px rgba(0,0,0,.7)}
+    100%{box-shadow:0 20px 40px rgba(0,0,0,.7)}
+}
+.card.rflash{animation:rflash .45s ease-out both}
+.card-cost{position:absolute;top:-7px;left:-7px;width:26px;height:26px;border-radius:50%;background:var(--accent);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;z-index:10}
+.card-rarity{position:absolute;top:2px;right:0;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#a78bfa;padding:2px 6px}
+.card-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-top:8px;gap:6px}
+.card-art{width:174px;height:174px;border-radius:44px;background:#1a1825;border:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#3f3b52;}
+.card-name{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;text-align:center;color:#fff;line-height:1.2;max-width:90%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}
+.card-desc{font-size:9px;color:#a78bfa;font-weight:600;padding:4px 6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);border-radius:4px;width:85%;margin:0 auto 2px;height:64px;overflow-y:auto;line-height:1.3}
+.card-desc::-webkit-scrollbar{display:none}
+.card-atk{position:absolute;bottom:-5px;left:-5px;width:24px;height:24px;border-radius:5px;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;z-index:10}
+.card-hp{position:absolute;bottom:-5px;right:-5px;width:24px;height:24px;border-radius:5px;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;z-index:10}
+.batch-panel{
+    display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;
+    background:rgba(255,255,255,.03);border:1.5px solid var(--border);
+}
+.batch-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.batch-count{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.batch-list{display:flex;flex-direction:column;gap:8px}
+.batch-empty{font-size:12px;color:var(--muted)}
+.batch-item{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:9px;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+}
+.batch-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.batch-name{font-size:13px;font-weight:800;color:#fff}
+.batch-sub{font-size:11px;color:var(--muted)}
+.status-msg{
+    padding:12px 14px;border-radius:10px;font-size:12px;font-weight:700;
+    background:rgba(255,255,255,.04);border:1px solid var(--border);color:#fff;
+}
+.status-ok{background:rgba(5,150,105,.12);border-color:rgba(5,150,105,.4);color:#a7f3d0}
+.status-warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.4);color:#fde68a}
+
+/* result */
+.json-block{background:rgba(0,0,0,.45);border:1.5px solid rgba(255,255,255,.07);border-radius:10px;padding:14px 16px;font-family:monospace;font-size:12px;color:#c4b5fd;line-height:1.65;overflow:auto;white-space:pre;max-height:300px}
+.json-block::-webkit-scrollbar{width:5px}
+.json-block::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+.status-msg{font-size:13px;font-weight:700;padding:10px 14px;border-radius:9px;text-align:center}
+.status-ok{background:rgba(5,150,105,.14);color:#34d399;border:1.5px solid rgba(5,150,105,.3)}
+.status-err{background:rgba(239,68,68,.1);color:#fca5a5;border:1.5px solid rgba(239,68,68,.25)}
+
+/* Custom Suggestions Container */
+.suggestion-container {
+    position: relative;
+    width: 100%;
+}
+
+.custom-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: none; /* Hidden by default */
+}
+
+.suggestion-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text);
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.suggestion-item:last-child { border-bottom: none; }
+
+.suggestion-item:hover {
+    background: var(--accent);
+    color: white;
+}
+
+/* Hide the native arrow in some browsers */
+input::-webkit-calendar-picker-indicator {
+    display: none !important;
+}
+
+</style>
 </head>
 <body>
-    <div id="root"></div>
+<div class="wizard">
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+<!-- Steps -->
+<div class="steps-bar">
+    <div class="step-pill active" onclick="goTo(0)" id="pill-0"><span class="n">1</span>Identity</div>
+    <div class="step-conn"></div>
+    <div class="step-pill" onclick="goTo(1)" id="pill-1"><span class="n">2</span>Stats</div>
+    <div class="step-conn"></div>
+    <div class="step-pill" onclick="goTo(2)" id="pill-2"><span class="n">3</span>Description</div>
+    <div class="step-conn"></div>
+    <div class="step-pill" onclick="goTo(3)" id="pill-3"><span class="n">4</span>Ability</div>
+    <div class="step-conn"></div>
+    <div class="step-pill" onclick="goTo(4)" id="pill-4"><span class="n">5</span>Save</div>
+</div>
 
-        // --- Inline Icons ---
-        const Icon = ({ children, className = "", onClick }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" onClick={onClick} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {children}
-            </svg>
-        );
-        const Sparkles = (p) => <Icon {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></Icon>;
-        const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></Icon>;
-        const Layers = (p) => <Icon {...p}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></Icon>;
-        const Zap = (p) => <Icon {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
-        const Swords = (p) => <Icon {...p}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></Icon>;
-        const Shield = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Icon>;
-        const Crosshair = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></Icon>;
-        const X = (p) => <Icon {...p}><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></Icon>;
-        const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12"/></Icon>;
-        const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></Icon>;
+<div class="main-area">
+<div>
 
-        // --- App Configuration ---
-        const RARITY_COLORS = {
-            COMMON: '#64748b',
-            UNCOMMON: '#10b981',
-            RARE: '#3b82f6',
-            EPIC: '#a855f7',
-            LEGENDARY: '#f59e0b',
-        };
+<!-- ”€ STEP 1 ”€ -->
+<div class="step-panel active" id="step-0">
+    <div class="step-title">Who is this card?</div>
+    <div class="step-sub">Name, series, rarity, and keyword ability.</div>
 
-        const FALLBACK_CARDS = [
-            { "name": "Diana Bullen", "atk": 2, "hp": 4, "cost": 3, "rarity": "LEGENDARY", "ability": "guard", "series": "New Haven", "description": "£{''The more Diana experimented, the more ability she got.''}£ --- /lightgreen/Guard/ that gains /darkred/+2 atk/ at the end of each turn.", "abilities": { "onTurnEnd": [ { "type": "attackUpSelf", "value": 2 } ] } },
-            { "name": "Natalie Bergeron", "atk": 2, "hp": 2, "cost": 1, "rarity": "EPIC", "ability": "haste", "series": "New Haven", "description": "/darkred/Fast attacker/ that can strike immediately when played, also heals all allies with /lightgreen/2 hp/.", "abilities": { "onPlay": [ { "type": "healAllies", "value": 3 } ] } },
-            { "name": "Joseph", "atk": 1, "hp": 2, "cost": 1, "rarity": "RARE", "ability": "berserk", "series": "New Haven", "description": "When played will deal /darkred/1 damage/ to all enemies. Will deal /darkred/2 dmg/ if /white/Natalie/ or /white/Jane/ is in play.", "abilities": { "onPlay": [{ "type": "dealDamageAllEnemies", "value": "1 + context.scenario" }], "scenario": { "type": "or", "cards": ["Natalie Bergeron", "Jane"], "positive": 1, "negative": 0 } } },
-            { "name": "Jane", "atk": 2, "hp": 4, "cost": 1, "rarity": "EPIC", "ability": "snipe", "series": "New Haven", "description": "When played, reduces the cost of every /yellow/New Haven/ card in your hand by /white/2/ #cost#!", "abilities": { "onPlay": [ { "type": "discountHandBySeries", "series": "New Haven", "value": 2 } ] } },
-            { "name": "Quinta Valentine", "atk": 4, "hp": 2, "cost": 3, "rarity": "RARE", "ability": "snipe", "series": "New Haven", "description": "£{If Quinta knows she's got easy prey, she **/red/strikes/**!}£ /n---/n _10px_Deals 3 damage to all enemies if there's 2 or less enemies._", "abilities": { "scenario": { "type": "unitCount", "side": "enemy", "operator": "less", "threshold": 3, "positive": 1, "negative": 0 }, "onPlay": [ { "type": "dealDamageAllEnemies", "value": 3 } ] } },
-            { "name": "Clara Garcia", "atk": 2, "hp": 6, "cost": 4, "rarity": "UNCOMMON", "ability": "guard", "series": "New Haven", "description": "A /green/guard/ that will tank hits, if Cheetor is played before this Clara will gain /lightgreen/+3 hp/.", "abilities": { "onPlay": [ { "type": "hpUpSelf", "value": "context.scenario * 3", "scenario": { "type": "or", "cards": ["Cheetor"], "positive": 1, "negative": 0 } } ] } }
-        ];
+    <div class="field">
+        <div class="lbl">Card Name</div>
+        <input type="text" id="f-name" placeholder="e.g. Diana Bullen" oninput="sync()" maxlength="40">
+    </div>
+    <div class="field">
+        <div class="lbl">Series / Set</div>
+        <div class="suggestion-container">
+            <input type="text" id="f-series" placeholder="e.g. New Haven" oninput="sync()" autocomplete="off">
+            <div id="seriesDropdown" class="custom-dropdown"></div>
+        </div>
+    </div>
 
-        const DEFAULT_CARD = {
-            name: 'New Unit',
-            atk: 1,
-            hp: 1,
-            cost: 1,
-            rarity: 'COMMON',
-            series: 'Original',
-            ability: 'none',
-            description: "",
-            // UI Specific State (Mapped safely to JSON output)
-            abilities: {
-                active: false,
-                trigger: 'onPlay',
-                effectType: 'healAllies',
-                effectValue: 1,
-                effectSeries: '', // For effects that check series
-                hasScenario: false,
-                scenario: {
-                    type: 'or',
-                    side: 'player',
-                    operator: 'less',
-                    threshold: 3,
-                    value: 1, // multiplier for "each"
-                    cards: []
-                }
-            }
-        };
+    <div class="field">
+        <div class="lbl">Rarity</div>
+        <div class="pill-grid" id="gRarity">
+            <div class="pill r-pill sel" data-r="COMMON"    onclick="pick(this,'rarity','gRarity')">Common</div>
+            <div class="pill r-pill"     data-r="UNCOMMON"  onclick="pick(this,'rarity','gRarity')">Uncommon</div>
+            <div class="pill r-pill"     data-r="RARE"      onclick="pick(this,'rarity','gRarity')">Rare</div>
+            <div class="pill r-pill"     data-r="EPIC"      onclick="pick(this,'rarity','gRarity')">Epic</div>
+            <div class="pill r-pill"     data-r="LEGENDARY" onclick="pick(this,'rarity','gRarity')">Legendary</div>
+        </div>
+    </div>
 
-        const TUTORIAL_STEPS = [
-            { title: "Welcome", content: "Design and generate JSON for custom cards." },
-            { title: "Stats", content: "Set Attack, Health, and Cost in the new input row." },
-            { title: "Limits", content: "Keep descriptions under 150 characters for the UI." },
-            { title: "Engine", content: "Toggle the Ability Engine to add logic like 'On Play: Heal'." }
-        ];
+    <div class="field">
+        <div class="lbl">
+            Keyword Ability
+            <span class="tip-wrap">
+                <span class="tip-icon">?</span>
+                <span class="tip-box">
+                    Keyword abilities are <b>passive combat rules</b> they don't need the Ability Engine.<br><br>
+                    <b>None</b> no keyword.<br>
+                    <b>Guard</b> enemies must attack this card before other units.<br>
+                    <b>Haste</b> can attack the turn it's played (not exhausted).<br>
+                    <b>Haste 2</b> attacks twice per turn.<br>
+                    <b>Berserk</b> excess damage carries over to the enemy Nexus.<br>
+                    <b>Snipe</b> can target any enemy unit, ignoring Guard.<br>
+                    <b>Echo</b> fires its on-play ability a second time.<br>
+                    <b>Splash</b> also hits units adjacent to its target.<br>
+                    <b>Heal</b> heals your Nexus by its ATK each time it attacks.
+                </span>
+            </span>
+        </div>
+        <div class="pill-grid" id="gAbility">
+            <div class="pill a-pill sel" data-a="none"    onclick="pick(this,'ability','gAbility')">None</div>
+            <div class="pill a-pill"     data-a="guard"   onclick="pick(this,'ability','gAbility')">Guard</div>
+            <div class="pill a-pill"     data-a="haste"   onclick="pick(this,'ability','gAbility')">Haste</div>
+            <div class="pill a-pill"     data-a="haste2"  onclick="pick(this,'ability','gAbility')">Haste 2</div>
+            <div class="pill a-pill"     data-a="berserk" onclick="pick(this,'ability','gAbility')">Berserk</div>
+            <div class="pill a-pill"     data-a="snipe"   onclick="pick(this,'ability','gAbility')">Snipe</div>
+            <div class="pill a-pill"     data-a="echo"    onclick="pick(this,'ability','gAbility')">Echo</div>
+            <div class="pill a-pill"     data-a="splash"  onclick="pick(this,'ability','gAbility')">Splash</div>
+            <div class="pill a-pill"     data-a="heal"    onclick="pick(this,'ability','gAbility')">Heal</div>
+        </div>
+    </div>
 
-        const App = () => {
-            const [cards, setCards] = useState([]);
-            const [searchQuery, setSearchQuery] = useState('');
-            const [loading, setLoading] = useState(true);
-            const [scenarioInput, setScenarioInput] = useState('');
-            
-            const [formData, setFormData] = useState(DEFAULT_CARD);
+    <div class="nav-row"><span></span><button class="btn btn-primary" onclick="goTo(1)">Next</button></div>
+</div>
 
-            // Fetch cards.json
-            useEffect(() => {
-                fetch('cards.json')
-                .then(res => {
-                    if (!res.ok) throw new Error("Not found");
-                    return res.json();
-                })
-                .then(data => {
-                    setCards(data);
-                    setLoading(false);
-                })
-                .catch(err => {
-                    console.log("Using fallback cards. cards.json not found or blocked by CORS.");
-                    setCards(FALLBACK_CARDS);
-                    setLoading(false);
-                });
-            }, []);
+<!-- ”€ STEP 2 ”€ -->
+<div class="step-panel" id="step-1">
+    <div class="step-title">Set the Numbers</div>
+    <div class="step-sub">Attack, Health, and Mana cost.</div>
+    <div class="stepper-group">
+        <div class="stepper-wrap">
+            <div class="lbl">Attack</div>
+            <div class="stepper"><button class="s-btn" onclick="adj('atk',-1)">-</button><div class="s-val" id="val-atk">1</div><button class="s-btn" onclick="adj('atk',+1)">+</button></div>
+        </div>
+        <div class="stepper-wrap">
+            <div class="lbl">Health</div>
+            <div class="stepper"><button class="s-btn" onclick="adj('hp',-1)">-</button><div class="s-val" id="val-hp">1</div><button class="s-btn" onclick="adj('hp',+1)">+</button></div>
+        </div>
+        <div class="stepper-wrap">
+            <div class="lbl">Cost</div>
+            <div class="stepper"><button class="s-btn" onclick="adj('cost',-1)">-</button><div class="s-val" id="val-cost">1</div><button class="s-btn" onclick="adj('cost',+1)">+</button></div>
+        </div>
+    </div>
+    <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(0)">Back</button><button class="btn btn-primary" onclick="goTo(2)">Next</button></div>
+</div>
 
-            const [isTutorialOpen, setIsTutorialOpen] = useState(false);
-            const [tutorialStep, setTutorialStep] = useState(0);
+<!-- ”€ STEP 3 ”€ -->
+<div class="step-panel" id="step-2">
+    <div class="step-title">Describe the Card</div>
+    <div class="step-sub">Flavour and effect text shown on the card.</div>
 
-            const handleAbilityToggle = () => {
-                setFormData(prev => ({
-                    ...prev,
-                    abilities: { ...prev.abilities, active: !prev.abilities.active }
-                }));
-            };
+    <div class="field">
+        <div class="lbl">Description</div>
+        <textarea id="f-desc" placeholder="e.g. /darkred/Deals 2 damage/ to all enemies on play." oninput="sync()" rows="4"></textarea>
+    </div>
 
-            const handleAbilityChange = (e) => {
-                const { name, value } = e.target;
-                setFormData(prev => ({
-                    ...prev,
-                    abilities: { ...prev.abilities, [name]: value }
-                }));
-            };
+    <div class="chip-sect">
+        <div class="chip-lbl">
+            Colour wrap <code style="opacity:.7">/colorname/text/</code>
+            <span class="tip-wrap">
+                <span class="tip-icon">?</span>
+                <span class="tip-box">Wrap any text in <b>/colorname/your text/</b> to colour it. You can use any CSS colour name or hex code. Examples: <b>/darkred/damage/</b>, <b>/lightgreen/heal/</b>, <b>/gold/legendary/</b>, <b>/#ff44aa/text/</b>.</span>
+            </span>
+        </div>
+        <div class="chips">
+            <div class="chip" onclick="ins('/darkred/ /')">darkred</div>
+            <div class="chip" onclick="ins('/lightgreen/ /')">lightgreen</div>
+            <div class="chip" onclick="ins('/yellow/ /')">yellow</div>
+            <div class="chip" onclick="ins('/white/ /')">white</div>
+            <div class="chip" onclick="ins('/cyan/ /')">cyan</div>
+            <div class="chip" onclick="ins('/gold/ /')">gold</div>
+            <div class="chip" onclick="ins('/pink/ /')">pink</div>
+            <div class="chip" onclick="ins('/silver/ /')">silver</div>
+        </div>
+    </div>
 
-            const filteredCards = useMemo(() => {
-                return cards.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
-            }, [cards, searchQuery]);
+    <div class="chip-sect">
+        <div class="chip-lbl">Text effects</div>
+        <div class="chips">
+            <div class="chip" onclick="ins('**text**')"><b>Bold</b></div>
+            <div class="chip" onclick="ins('£{flavour text here}£')">Flavour quote</div>
+            <div class="chip" onclick="ins('[rainbow]text[/rainbow]')">Rainbow</div>
+            <div class="chip" onclick="ins('{shake}text{/shake}')">Shake</div>
+            <div class="chip" onclick="ins('_12px_text_')">Aa Size</div>
+            <div class="chip" onclick="ins('\\n')">New line</div>
+            <div class="chip" onclick="ins(' --- ')">Divider</div>
+        </div>
+    </div>
 
-            const seriesOptions = useMemo(() => {
-                const sets = new Set(cards.map(c => c.series).filter(Boolean));
-                return Array.from(sets);
-            }, [cards]);
+    <div class="chip-sect">
+        <div class="chip-lbl">
+            Icons &amp; Card Links
+            <span class="tip-wrap">
+                <span class="tip-icon">?</span>
+                <span class="tip-box">
+                    <b>#atk# / #hp# / #cost#</b> renders the card's live stat value as a small inline icon. Useful for text like "heals #hp# HP".<br><br>
+                    <b>[[Card Name]]</b> a card reference link. In the game it shows the card name in cyan with an underline. Write the exact name of the card you're referencing, e.g. <b>[[Diana Bullen]]</b>. If that card exists it'll be highlighted. Used to hint synergies in the description.
+                </span>
+            </span>
+        </div>
+        <div class="chips">
+            <div class="chip" onclick="ins('#atk#')">#atk# icon</div>
+            <div class="chip" onclick="ins('#hp#')">#hp# icon</div>
+            <div class="chip" onclick="ins('#cost#')">#cost# icon</div>
+            <div class="chip" onclick="ins('[[Card Name]]')">[[card link]]</div>
+        </div>
+    </div>
 
-            // Safely parse incoming complex JSON into our UI Form state
-            const handleSelectTemplate = (card) => {
-                // Deep copy so nested scenario state doesn't mutate defaults
-                let parsedAbilities = JSON.parse(JSON.stringify(DEFAULT_CARD.abilities));
-                
-                if (card.abilities) {
-                    parsedAbilities.active = true;
-                    // Find the primary trigger (ignoring root 'scenario' keys)
-                    const triggerKey = Object.keys(card.abilities).find(k => k !== 'scenario');
-                    
-                    if (triggerKey && Array.isArray(card.abilities[triggerKey])) {
-                        parsedAbilities.trigger = triggerKey;
-                        const effect = card.abilities[triggerKey][0];
-                        
-                        if (effect) {
-                            parsedAbilities.effectType = effect.type || 'healAllies';
-                            parsedAbilities.effectValue = effect.value !== undefined ? effect.value : (effect.damage !== undefined ? effect.damage : (effect.amount || 0));
-                            parsedAbilities.effectSeries = effect.series || '';
-                            
-                            // Check if scenario is embedded in effect or at root
-                            const scenarioData = effect.scenario || card.abilities.scenario;
-                            if (scenarioData) {
-                                parsedAbilities.hasScenario = true;
-                                parsedAbilities.scenario = {
-                                    type: scenarioData.type || 'or',
-                                    side: scenarioData.side || 'player',
-                                    operator: scenarioData.operator || 'less',
-                                    threshold: scenarioData.threshold || 3,
-                                    value: scenarioData.value || 1,
-                                    cards: scenarioData.cards || scenarioData.cardNames || []
-                                };
-                            }
-                        }
-                    }
-                }
+    <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(1)">Back</button><button class="btn btn-primary" onclick="goTo(3)">Next</button></div>
+</div>
 
-                setFormData({
-                    ...DEFAULT_CARD,
-                    ...card,
-                    abilities: parsedAbilities,
-                    description: card.description || ""
-                });
-            };
+<!-- STEP 4: Ability -->
+<div class="step-panel" id="step-3">
+    <div class="step-title">
+        Active Ability
+        <span class="tip-wrap">
+            <span class="tip-icon">?</span>
+            <span class="tip-box" style="width:300px">
+                The <b>Ability Engine</b> gives this card a scripted effect. Pick <b>when</b> it fires (the trigger), <b>what</b> it does (the effect), and a <b>value</b>. Optionally add a <b>Condition</b> the effect only fires if that condition is met at trigger time.
+            </span>
+        </span>
+    </div>
+    <div class="step-sub">Optional: give this card a scripted game effect.</div>
 
-            const handleInputChange = (e) => {
-                const { name, value } = e.target;
-                setFormData(prev => ({
-                    ...prev,
-                    [name]: (name === 'atk' || name === 'hp' || name === 'cost') ? parseInt(value) || 0 : value
-                }));
-            };
+    <!-- Toggle -->
+    <div class="toggle-row" id="aeRow" onclick="toggleAE()">
+        <div>
+            <div class="toggle-name">Enable Ability Engine</div>
+            <div class="toggle-hint">Add an on-play / on-attack / on-death effect</div>
+        </div>
+        <div class="sw" id="aeSw"></div>
+    </div>
 
-            const insertToDescription = (snippet) => {
-                setFormData(prev => ({
-                    ...prev,
-                    description: prev.description + snippet
-                }));
-            };
+    <div class="ae-body" id="aeBody">
 
-            const handleScenarioChange = (field, value) => {
-                setFormData(prev => ({
-                    ...prev,
-                    abilities: {
-                        ...prev.abilities,
-                        scenario: { ...prev.abilities.scenario, [field]: value }
-                    }
-                }));
-            };
+        <!-- TRIGGER -->
+        <div class="field">
+            <div class="lbl">
+                When does it trigger?
+                <span class="tip-wrap">
+                    <span class="tip-icon">?</span>
+                    <span class="tip-box">
+                        <b>On Play</b> fires once when the card enters the board.<br>
+                        <b>On Attack</b> fires every time this card attacks.<br>
+                        <b>On Turn End</b> fires at the end of each turn while alive.<br>
+                        <b>On Turn Start</b> fires at the start of each turn.<br>
+                        <b>On Death</b> fires when this card is destroyed.<br>
+                        <b>When Attacked</b> fires when an enemy attacks this card.<br>
+                        <b>When Not Attacking</b> fires at turn end if the card didn't attack.
+                    </span>
+                </span>
+            </div>
+            <div class="pill-grid" id="gTrigger">
+                <div class="t-pill sel" data-t="onPlay"       onclick="pickT(this)">On Play</div>
+                <div class="t-pill"     data-t="onAttack"      onclick="pickT(this)">On Attack</div>
+                <div class="t-pill"     data-t="onTurnEnd"     onclick="pickT(this)">On Turn End</div>
+                <div class="t-pill"     data-t="onTurnStart"   onclick="pickT(this)">On Turn Start</div>
+                <div class="t-pill"     data-t="onDeath"       onclick="pickT(this)">On Death</div>
+                <div class="t-pill"     data-t="whenAttacked"  onclick="pickT(this)">When Attacked</div>
+                <div class="t-pill"     data-t="whenNotAttack" onclick="pickT(this)">When Not Attacking</div>
+            </div>
+        </div>
 
-            const addScenarioCard = (e) => {
-                e.preventDefault();
-                if (scenarioInput.trim() && !formData.abilities.scenario.cards.includes(scenarioInput.trim())) {
-                    handleScenarioChange('cards', [...formData.abilities.scenario.cards, scenarioInput.trim()]);
-                    setScenarioInput('');
-                }
-            };
+        <!-- EFFECT -->
+        <div class="field">
+            <div class="lbl">
+                What does it do?
+                <span class="tip-wrap">
+                    <span class="tip-icon">?</span>
+                    <span class="tip-box" style="width:300px">
+                        Select the effect type. Fill in the <b>Value</b> below most effects use it as the amount (damage, heal, stat gain, etc.).<br><br>
+                        Some effects reveal extra fields (a series name, a card to spawn, etc.) when selected.<br><br>
+                        If you add a <b>Condition</b>, you can write <b>context.scenario</b> as the value it equals 1 when the condition passes, 0 when it fails so <b>3 * context.scenario</b> deals 3 only when the condition is met.
+                    </span>
+                </span>
+            </div>
+            <div class="effect-grid" id="effectGrid"></div>
+        </div>
 
-            const removeScenarioCard = (nameToRemove) => {
-                handleScenarioChange('cards', formData.abilities.scenario.cards.filter(n => n !== nameToRemove));
-            };
-
-            // Generate clean, bug-free JSON object based on UI state (Synced with scripts.js logic)
-            const generatedJSON = useMemo(() => {
-                const out = {
-                    name: formData.name,
-                    atk: formData.atk,
-                    hp: formData.hp,
-                    cost: formData.cost,
-                    rarity: formData.rarity,
-                    ability: formData.ability || "none",
-                    series: formData.series,
-                    description: formData.description
-                };
-
-                if (formData.abilities && formData.abilities.active) {
-                    const effectObj = { type: formData.abilities.effectType };
-                    
-                    // Add Series if it's required for the specific effect
-                    if (['discountHandBySeries', 'valuePerSeriesInEnemyBoard'].includes(formData.abilities.effectType)) {
-                        effectObj.series = formData.abilities.effectSeries;
-                    }
-                    
-                    // Parse value to number if possible, otherwise string (like "1 + context.scenario")
-                    if (formData.abilities.effectValue !== '' && formData.abilities.effectValue !== null) {
-                        const numVal = Number(formData.abilities.effectValue);
-                        effectObj.value = isNaN(numVal) ? formData.abilities.effectValue : numVal;
-                    }
-
-                    if (formData.abilities.hasScenario) {
-                        const s = formData.abilities.scenario;
-                        const scenObj = { type: s.type };
-                        
-                        if (s.type === 'unitCount') {
-                            scenObj.side = s.side;
-                            scenObj.operator = s.operator;
-                            scenObj.threshold = Number(s.threshold);
-                            scenObj.positive = 1;
-                            scenObj.negative = 0;
-                        } else {
-                            scenObj.cards = s.cards;
-                            if (s.type === 'each') {
-                                scenObj.value = Number(s.value) || 1;
-                            } else {
-                                scenObj.positive = 1;
-                                scenObj.negative = 0;
-                            }
-                        }
-                        effectObj.scenario = scenObj; // Attach securely inside effect
-                    }
-
-                    out.abilities = {
-                        [formData.abilities.trigger]: [ effectObj ]
-                    };
-                }
-                
-                return JSON.stringify(out, null, 4);
-            }, [formData]);
-
-            const parseStylization = (text) => {
-                if (!text) return null;
-                
-                // Updated regex to include Links [[...]] and Hidden {{hidden}}...{{/hidden}}
-                const tokens = text.split(/\{\{hidden\}\}.*?\{\{\/hidden\}\}|(£\{.+?\}£|\/[a-z#0-9]+\/.*?\/|\*\*.*?\*\*|_\d+px_.*?_|\[rainbow\].*?\[\/rainbow\]|\{shake\}.*?\{\/shake\}|#(?!(?:hidden|link))[a-z]+#|\[\[.*?\]\]|)/g).filter(Boolean);
-                
-                return tokens.map((token, i) => {
-                    if (token.startsWith('[[') && token.endsWith(']]')) {
-                        const content = token.slice(2, -2);
-                        // Splitting by | in case you use the [[Display|Image]] format
-                        const [displayText] = content.split('|'); 
-                        return (
-                            <span key={i} className="text-[inherit] font-bold underline decoration-current underline-offset-2 opacity-80 border-b border-cyan-400/30">
-                                <span className="text-cyan-400 [[.hidden-wrapper_&]:text-transparent]">
-                                    {parseStylization(displayText)}
-                                </span>
-                            </span>
-                        );
-                    }
-
-                    if (token.startsWith('{{hidden}}') && token.endsWith('{{/hidden}}')) {
-                        return (
-                            <span 
-                                key={i} 
-                                className="hidden-wrapper bg-slate-800/50 hover:bg-transparent px-1 rounded transition-all duration-300 cursor-help group/hidden"
-                                title="Hover to reveal secret info"
-                            >
-                            <span className="text-transparent group-hover/hidden:text-slate-400 transition-colors">
-                                    {parseStylization(token.slice(8, -9))}
-                                </span>
-                            </span>
-                        );
-                    }
-
-                    // --- Existing Styles ---
-                    if (token.startsWith('£{') && token.endsWith('}£')) 
-                        return <span key={i} className="italic opacity-80 text-[0.9em]">{parseStylization(token.slice(2, -2))}</span>;
-                    
-                    if (token.startsWith('/') && token.endsWith('/')) {
-                        const match = token.match(/^\/([a-z#0-9]+)\/(.*)\/$/);
-                        if (match) return <span key={i} style={{ color: match[1] }} className="font-bold">{parseStylization(match[2])}</span>;
-                    }
-                    
-                    if (token.startsWith('**') && token.endsWith('**')) 
-                        return <span key={i} className="font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.5)', letterSpacing: '0.02em' }}>{parseStylization(token.slice(2, -2))}</span>;
-                    
-                    if (token.startsWith('_') && token.endsWith('_')) {
-                        const match = token.match(/^_(\d+px)_(.*)_$/);
-                        if (match) return <span key={i} style={{ fontSize: match[1] }}>{parseStylization(match[2])}</span>;
-                    }
-                    
-                    if (token.startsWith('[rainbow]') && token.endsWith('[/rainbow]')) 
-                        return <span key={i} className="animate-pulse font-black" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{parseStylization(token.slice(9, -10))}</span>;
-                    
-                    if (token.startsWith('{shake}') && token.endsWith('{/shake}')) 
-                        return <span key={i} className="inline-block animate-bounce text-red-400">{parseStylization(token.slice(7, -8))}</span>;
-                    
-                    // --- Icons ---
-                    if (token === '#atk#') return <Swords key={i} className="inline w-3 h-3 mb-1 text-red-500" />;
-                    if (token === '#hp#') return <Shield key={i} className="inline w-3 h-3 mb-1 text-green-500" />;
-                    if (token === '#cost#') return <Zap key={i} className="inline w-3 h-3 mb-1 text-indigo-400" />;
-                    
-                    return token;
-                });
-            };
-
-            // 2. Updated renderDescription that triggers the recursive parser
-            const renderDescription = (text) => {
-                if (!text) return <span className="opacity-40 italic">No special abilities.</span>;
-                
-                const lines = text.split(/\/n/g);
-                
-                return lines.map((line, lineIndex) => {
-                    if (line.trim() === '---') {
-                        return <div key={`hr-${lineIndex}`} className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-2" />;
-                    }
-
-                    return (
-                        <div key={`line-${lineIndex}`} className="min-h-[1.2em] mb-1">
-                            {parseStylization(line)}
-                        </div>
-                    );
-                });
-            };
-
-            return (
-                <div className="min-h-screen font-sans p-4 md:p-8 text-slate-50">
-                <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                    <h1 className="text-4xl font-black tracking-tight flex items-center gap-2" style={{ color: '#6366f1' }}>
-                        <Sparkles className="w-8 h-8" /> CARDSMITH
-                    </h1>
-                    <p className="text-indigo-200/50 font-medium">Design and visualize your legendary collection</p>
-                    </div>
-                    <div className="relative group z-50">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                    <input 
-                        type="text"
-                        placeholder="Search existing cards..."
-                        className="pl-10 pr-4 py-3 border rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none w-full md:w-72 transition-all"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    {searchQuery && (
-                        <div className="absolute top-full right-0 mt-2 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto w-full border border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#13111c' }}>
-                        {filteredCards.length > 0 ? (
-                            filteredCards.map((c, i) => (
-                            <button
-                                key={i}
-                                onClick={() => {
-                                    handleSelectTemplate(c);
-                                    setSearchQuery('');
-                                }}
-                                className="w-full text-left px-4 py-3 hover:bg-indigo-500/20 flex items-center justify-between border-b border-white/5 last:border-0 transition-colors"
-                            >
-                                <span className="font-semibold text-sm text-indigo-100">{c.name}</span>
-                                <span className="text-[10px] uppercase px-2 py-1 rounded bg-black/40 text-indigo-300 font-bold">{c.rarity}</span>
-                            </button>
-                            ))
-                        ) : (
-                            <div className="px-4 py-3 text-sm text-slate-500 italic">No cards found</div>
-                        )}
-                        </div>
-                    )}
-                    </div>
-                </header>
-
-                <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    
-                    <section className="col-span-1 lg:col-span-7 xl:col-span-8 space-y-6 p-6 md:p-8 rounded-3xl border shadow-2xl relative overflow-hidden" style={{ backgroundColor: '#13111c', borderColor: 'rgba(255,255,255,0.1)' }}>
-                    
-                    <div className="flex items-center gap-2 mb-4 text-indigo-400 font-bold uppercase tracking-wider text-sm">
-                        <Layers className="w-4 h-4" /> Card Configuration
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="col-span-full">
-                        <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase">Card Name</label>
-                        <input 
-                            name="name"
-                            value={formData.name}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold border"
-                            style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
-                        />
-                        </div>
-
-                        <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase">Rarity</label>
-                        <select 
-                            name="rarity"
-                            value={formData.rarity}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium border appearance-none"
-                            style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
-                        >
-                            <option value="COMMON" style={{color:'black'}}>Common</option>
-                            <option value="UNCOMMON" style={{color:'black'}}>Uncommon</option>
-                            <option value="RARE" style={{color:'black'}}>Rare</option>
-                            <option value="EPIC" style={{color:'black'}}>Epic</option>
-                            <option value="LEGENDARY" style={{color:'black'}}>Legendary</option>
-                        </select>
-                        </div>
-
-                        <div className="relative">
-                            <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase">Series</label>
-                            <input 
-                                type="text"
-                                name="series"
-                                value={formData.series}
-                                onChange={handleInputChange}
-                                onFocus={() => document.getElementById('custom-dropdown')?.classList.remove('hidden')}
-                                onBlur={() => setTimeout(() => document.getElementById('custom-dropdown')?.classList.add('hidden'), 200)}
-                                placeholder="Type or select a series..."
-                                className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium border"
-                                style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
-                            />
-                            <div id="custom-dropdown" className="hidden absolute left-0 right-0 mt-2 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto border border-white/10 backdrop-blur-xl" style={{ backgroundColor: '#13111c' }}>
-                                <button type="button" onClick={() => { setFormData(prev => ({ ...prev, series: 'Original' })); document.getElementById('custom-dropdown')?.classList.add('hidden'); }} className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5">Original</button>
-                                {seriesOptions.filter(s => s !== 'Original' && s.toLowerCase().includes((formData.series || '').toLowerCase())).map((s, i) => (
-                                    <button key={i} type="button" onClick={() => { setFormData(prev => ({ ...prev, series: s })); document.getElementById('custom-dropdown')?.classList.add('hidden'); }} className="w-full text-left px-4 py-2.5 hover:bg-indigo-500/20 text-indigo-100 text-sm font-semibold transition-colors border-b border-white/5 last:border-0">{s}</button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-5">
-                            <div>
-                                <label className="block text-[10px] font-bold text-red-400 mb-1.5 uppercase">Atk</label>
-                                <input type="number" name="atk" value={formData.atk} onChange={handleInputChange} className="w-full px-3 py-3 bg-black/30 border border-white/10 rounded-xl focus:ring-2 focus:ring-red-500 outline-none text-center" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-green-400 mb-1.5 uppercase">HP</label>
-                                <input type="number" name="hp" value={formData.hp} onChange={handleInputChange} className="w-full px-3 py-3 bg-black/30 border border-white/10 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-center" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-indigo-400 mb-1.5 uppercase">Cost</label>
-                                <input type="number" name="cost" value={formData.cost} onChange={handleInputChange} className="w-full px-3 py-3 bg-black/30 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-center" />
-                            </div>
-                        </div>
-
-                        
-                        <div className="col-span-full mb-4 p-4 rounded-xl border border-white/5 bg-white/5">
-                            <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <Sparkles className="w-3 h-3" /> Stylization Guide (Click to insert)
-                            </h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[10px] font-medium text-slate-400">
-                                <div onClick={() => insertToDescription('/red/Text/')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">/red/Text/</code><span className="text-xs font-bold text-red-500">Text</span>
-                                </div>
-                                <div onClick={() => insertToDescription('**Text**')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">**Text**</code><span className="text-xs font-black text-white" style={{ textShadow: '0 0 10px rgba(255,255,255,0.6)' }}>Text</span>
-                                </div>
-                                <div onClick={() => insertToDescription('_16px_Text_')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">_16px_Text_</code><span style={{ fontSize: '16px' }} className="font-bold text-white">Text</span>
-                                </div>
-                                <div onClick={() => insertToDescription('£{Text}£')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">£{'{Text}'}£</code><span className="text-xs italic text-white/70">Text</span>
-                                </div>
-                                <div onClick={() => insertToDescription('/n---/n')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">/n---/n</code><div className="w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent my-1" />
-                                </div>
-                                <div onClick={() => insertToDescription('[rainbow]Text[/rainbow]')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">[rainbow]Text[/rainbow]</code><span className="text-xs font-black animate-pulse" style={{ background: 'linear-gradient(to right, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Text</span>
-                                </div>
-                                <div onClick={() => insertToDescription('{shake}Text{/shake}')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">{'{shake}Text{/shake}'}</code><span className="text-xs font-bold inline-block animate-bounce text-red-400">Text</span>
-                                </div>
-                                <div onClick={() => insertToDescription('#atk# #hp# #cost#')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-indigo-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-indigo-400 text-[9px]">#atk# #hp# #cost#</code><div className="flex items-center gap-2"><Swords className="w-3.5 h-3.5 text-red-500" /><Shield className="w-3.5 h-3.5 text-green-500" /><Zap className="w-3.5 h-3.5 text-indigo-400" /></div>
-                                </div>
-                                <div onClick={() => insertToDescription('[[Link]]')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-cyan-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-cyan-400 text-[9px]">[[Link]]</code>
-                                    <span className="text-[10px] text-cyan-400 font-bold underline">Lore</span>
-                                </div>
-
-                                <div onClick={() => insertToDescription('{{hidden}}Secret{{/hidden}}')} className="flex flex-col gap-1 p-2 rounded-lg bg-black/20 border border-white/5 cursor-pointer hover:border-slate-500/50 hover:bg-black/40 transition-all">
-                                    <code className="text-slate-400 text-[9px]">{"{{hidden}}Secret{{/hidden}})"}</code>
-                                    <div className="w-4 h-2 bg-slate-700 rounded-sm"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="col-span-full">
-                        <label className="block text-xs font-bold text-slate-400 mb-1.5 ml-1 uppercase flex items-center justify-between">
-                            <span>Description Text</span>
-                            <span className="text-[10px] text-indigo-400 lowercase">Use /n for newlines</span>
-                        </label>
-                        <textarea 
-                            name="description"
-                            value={formData.description}
-                            onChange={handleInputChange}
-                            rows={4}
-                            className="w-full px-4 py-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-y text-sm border"
-                            style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}
-                            placeholder="Describe the card's special abilities and effects here... (150 character limit recommended for best display)"
-                        />
-                        </div>
-                    </div>
-
-                    <div className="col-span-full mt-6 p-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="text-lg font-black text-white flex items-center gap-2">
-                                    <Zap className="w-5 h-5 text-yellow-400" /> Ability Engine
-                                </h3>
-                                <p className="text-xs text-slate-400 font-medium">Define complex logic mapped precisely to scripts.js</p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only peer"
-                                    checked={formData.abilities?.active || false}
-                                    onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, active: e.target.checked}})}
-                                />
-                                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                            </label>
-                        </div>
-
-                        {formData.abilities?.active && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in zoom-in-95 duration-200">
-                                
-                                {/* 1. LOGIC TRIGGER & SCENARIO */}
-                                <div className="space-y-4 p-4 rounded-xl bg-black/20 border border-white/5">
-                                    <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center justify-between">
-                                        <span>1. Trigger & Condition</span>
-                                    </label>
-                                    
-                                    <select 
-                                        value={formData.abilities?.trigger}
-                                        onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, trigger: e.target.value}})}
-                                        className="w-full bg-black/40 border border-white/10 text-white text-xs p-2.5 rounded-lg mb-4 outline-none focus:border-indigo-500 font-bold"
-                                    >
-                                        <option value="onPlay">When Played (onPlay)</option>
-                                        <option value="onTurnEnd">End of Turn (onTurnEnd)</option>
-                                        <option value="onAttack">When Attacking (onAttack)</option>
-                                        <option value="onDeath">When Destroyed (onDeath)</option>
-                                    </select>
-
-                                    <div className="pt-2 border-t border-white/10 mt-4">
-                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-300 mb-3 cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={formData.abilities.hasScenario}
-                                                onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, hasScenario: e.target.checked}})}
-                                                className="rounded border-white/20 bg-black/40 text-indigo-500 focus:ring-indigo-500"
-                                            />
-                                            Require Specific Scenario / Condition
-                                        </label>
-                                        
-                                        {formData.abilities.hasScenario && (
-                                            <div className="space-y-3 pl-6 border-l-2 border-indigo-500/30">
-                                                <select 
-                                                    value={formData.abilities.scenario.type} 
-                                                    onChange={(e) => handleScenarioChange('type', e.target.value)} 
-                                                    className="w-full bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none"
-                                                >
-                                                    <option value="or">Any of these cards present (OR)</option>
-                                                    <option value="and">All of these cards present (AND)</option>
-                                                    <option value="each">For each card present (EACH)</option>
-                                                    <option value="unitCount">Board Unit Count</option>
-                                                </select>
-
-                                                {formData.abilities.scenario.type === 'unitCount' ? (
-                                                    <div className="grid grid-cols-3 gap-2">
-                                                        <select value={formData.abilities.scenario.side} onChange={(e) => handleScenarioChange('side', e.target.value)} className="bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none">
-                                                            <option value="enemy">Enemy</option>
-                                                            <option value="player">Player</option>
-                                                        </select>
-                                                        <select value={formData.abilities.scenario.operator} onChange={(e) => handleScenarioChange('operator', e.target.value)} className="bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none">
-                                                            <option value="less">Less Than</option>
-                                                            <option value="greater">Greater Than</option>
-                                                            <option value="equal">Equal To</option>
-                                                        </select>
-                                                        <input type="number" placeholder="Count" value={formData.abilities.scenario.threshold} onChange={(e) => handleScenarioChange('threshold', e.target.value)} className="bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none" />
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="flex gap-2">
-                                                            <input type="text" placeholder="Add required card name..." value={scenarioInput} onChange={(e) => setScenarioInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addScenarioCard(e)} className="flex-1 bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none focus:border-indigo-500" />
-                                                            <button onClick={addScenarioCard} className="p-2 bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors"><Check className="w-4 h-4 text-white" /></button>
-                                                        </div>
-
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {formData.abilities.scenario.cards.map(card => (
-                                                                <span key={card} className="px-2 py-1 bg-indigo-500/20 border border-indigo-500/30 rounded text-[10px] text-indigo-200 flex items-center gap-1 font-bold">
-                                                                    {card} <X className="w-3 h-3 cursor-pointer hover:text-white" onClick={() => removeScenarioCard(card)} />
-                                                                </span>
-                                                            ))}
-                                                        </div>
-
-                                                        {formData.abilities.scenario.type === 'each' && (
-                                                            <div className="flex items-center gap-2 mt-2 bg-indigo-500/10 p-2 rounded border border-indigo-500/20">
-                                                                <span className="text-[10px] font-bold text-indigo-300 uppercase">Multiplier Value:</span>
-                                                                <input 
-                                                                    type="number" 
-                                                                    value={formData.abilities.scenario.value}
-                                                                    onChange={(e) => handleScenarioChange('value', e.target.value)}
-                                                                    className="w-16 bg-black/40 border border-white/10 text-white text-xs p-1 rounded outline-none text-center"
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* 2. EFFECT OUTCOME */}
-                                <div className="space-y-4 p-4 rounded-xl bg-black/20 border border-white/5">
-                                    <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">2. Effect Outcome</label>
-                                    
-                                    <select 
-                                        value={formData.abilities.effectType}
-                                        onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, effectType: e.target.value}})}
-                                        className="w-full bg-black/40 border border-white/10 text-white text-xs p-2.5 rounded-lg outline-none focus:border-emerald-500 font-bold"
-                                    >
-                                        <option value="healAllies">Heal Allies (Board)</option>
-                                        <option value="healNexus">Heal Nexus</option>
-                                        <option value="healSelf">Heal Self</option>
-                                        <option value="hpUpSelf">Max HP Up (Self)</option>
-                                        <option value="attackUpSelf">Atk Up (Self)</option>
-                                        <option value="dealDamageAllEnemies">Damage All Enemies</option>
-                                        <option value="splashAdjacent">Splash Damage (Adjacent)</option>
-                                        <option value="snipeDamage">Snipe Damage</option>
-                                        <option value="berserkOverflow">Berserk Nexus Damage</option>
-                                        <option value="silenceTarget">Silence Target</option>
-                                        <option value="disableTarget">Disable Target</option>
-                                        <option value="drawCard">Draw Card(s)</option>
-                                        <option value="discountHandBySeries">Discount Hand (By Series)</option>
-                                        <option value="valuePerSeriesInEnemyBoard">Count Series on Enemy Board</option>
-                                    </select>
-
-                                    {['discountHandBySeries', 'valuePerSeriesInEnemyBoard'].includes(formData.abilities.effectType) && (
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Target Series:</span>
-                                            <input 
-                                                type="text" 
-                                                placeholder="e.g. New Haven"
-                                                value={formData.abilities.effectSeries}
-                                                onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, effectSeries: e.target.value}})}
-                                                className="flex-1 bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none focus:border-emerald-500"
-                                            />
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Value / Expr:</span>
-                                        <input 
-                                            type="text" 
-                                            placeholder="e.g. 2 or context.scenario"
-                                            value={formData.abilities.effectValue}
-                                            onChange={(e) => setFormData({...formData, abilities: {...formData.abilities, effectValue: e.target.value}})}
-                                            className="flex-1 bg-black/40 border border-white/10 text-white text-xs p-2 rounded-lg outline-none focus:border-emerald-500"
-                                        />
-                                    </div>
-                                    
-                                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[10px] text-emerald-300 italic leading-relaxed">
-                                        Logic: <span className="font-bold text-white uppercase">{formData.abilities?.trigger}</span> → Check Condition → Execute <span className="font-bold text-white uppercase">{formData.abilities.effectType}</span> (Val: {formData.abilities.effectValue}).
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="col-span-full mt-8 pt-6 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                        <div className="flex items-center justify-between mb-4">
-                            <label className="text-sm font-bold text-indigo-300 uppercase flex items-center gap-2">
-                                <Layers className="w-4 h-4" /> JSON Output
-                            </label>
-                            
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(generatedJSON);
-                                        const btn = document.getElementById('copy-btn');
-                                        const originalText = btn.innerHTML;
-                                        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
-                                        setTimeout(() => { btn.innerHTML = originalText; }, 1500);
-                                    }}
-                                    id="copy-btn"
-                                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all flex items-center gap-1.5 shadow-lg active:scale-95"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
-                                    Copy to Clipboard
-                                </button>
-                                
-                                <button 
-                                    onClick={() => setFormData(DEFAULT_CARD)}
-                                    className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-lg border transition-colors"
-                                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}
-                                >
-                                    Reset Form
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Live generated code block that strictly outputs valid JSON */}
-                        <div className="relative">
-                            <pre 
-                                className="w-full p-4 rounded-xl text-xs font-mono text-indigo-200 overflow-x-auto border"
-                                style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderColor: 'rgba(255,255,255,0.05)' }}
-                            >
-                                <code id="json-output-text">
-{generatedJSON}
-                                </code>
-                            </pre>
-                        </div>
-                    </div>
-                    </section>
-
-                    <section className="col-span-1 lg:col-span-5 xl:col-span-4 sticky top-8 flex flex-col items-center">
-                    <div className="flex items-center gap-2 mb-6 text-indigo-400 font-bold uppercase tracking-wider text-sm">
-                        Live Vault Preview
-                    </div>
-
-                    <div 
-                        className="relative flex flex-col items-center justify-start p-1.5 shadow-[0_15px_30px_-5px_rgba(0,0,0,0.8)] transition-transform duration-300 hover:scale-105 select-none"
-                        style={{
-                        width: '250px',
-                        height: '350px',
-                        backgroundColor: '#111',
-                        border: `2px solid ${RARITY_COLORS[formData.rarity]}`,
-                        borderRadius: '10px'
-                        }}
-                    >
-                        <div 
-                        className="absolute flex items-center justify-center rounded-full z-30 shadow-[0_4px_6px_rgba(0,0,0,0.3)] text-white"
-                        style={{
-                            top: '-6px', left: '-6px',
-                            width: '28px', height: '28px',
-                            backgroundColor: '#6366f1',
-                            border: '2px solid rgba(255, 255, 255, 0.2)',
-                            fontSize: '12px', fontWeight: 900
-                        }}
-                        >
-                        {formData.cost}
-                        </div>
-
-                        <div 
-                        className="absolute right-0 uppercase z-30 text-indigo-200"
-                        style={{ top: '2px', padding: '2px 6px', fontSize: '8px', fontWeight: 700 }}
-                        >
-                        {formData.rarity}
-                        </div>
-
-                        <div className="flex-1 flex flex-col items-center justify-center w-full mt-2 relative overflow-hidden pointer-events-none">
-                        <div 
-                            className="flex items-center justify-center relative overflow-hidden bg-[#1a1825]"
-                            style={{
-                            width: '200px', height: '200px',
-                            borderRadius: '50px',
-                            border: '1px solid rgba(255,255,255,0.05)'
-                            }}
-                        >
-                            <div className="absolute inset-0 opacity-10 flex flex-wrap gap-2 p-2">
-                            {[...Array(9)].map((_, i) => <Sparkles key={i} className="w-full h-full text-white" />)}
-                            </div>
-                            <span className="text-[#3f3b52] font-black tracking-widest uppercase text-xs rotate-[-30deg]">Asset Missing</span>
-                        </div>
-                        <div className="text-[11px] font-black text-center leading-tight uppercase px-1 mt-2 text-white line-clamp-1 w-[90%]">
-                            {formData.name}
-                        </div>
-                        </div>
-
-                        <div 
-                        className="text-center w-[85%] mt-auto mb-2 block overflow-y-auto hide-scrollbar"
-                        style={{
-                            fontSize: '11px',
-                            color: '#a78bfa',
-                            fontWeight: 'bold',
-                            padding: '4px 6px',
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
-                            borderRadius: '4px',
-                            lineHeight: '1.3',
-                            height: '80px',
-                        }}
-                        >
-                        {renderDescription(formData.description)}
-                        </div>
-
-                        <div 
-                        className="absolute flex items-center justify-center z-20 text-white"
-                        style={{
-                            bottom: '-4px', left: '-4px',
-                            width: '26px', height: '26px',
-                            backgroundColor: '#ef4444',
-                            borderRadius: '5px',
-                            fontSize: '10px', fontWeight: 800
-                        }}
-                        >
-                        {formData.atk}
-                        </div>
-
-                        <div 
-                        className="absolute flex items-center justify-center z-20 text-white"
-                        style={{
-                            bottom: '-4px', right: '-4px',
-                            width: '26px', height: '26px',
-                            backgroundColor: '#22c55e',
-                            borderRadius: '5px',
-                            fontSize: '10px', fontWeight: 800
-                        }}
-                        >
-                        {formData.hp}
-                        </div>
-                    </div>
-                    </section>
-                </main>
+        <!-- VALUE + EXTRA FIELDS -->
+        <div class="row2">
+            <div class="field">
+                <div class="lbl">Value / Amount</div>
+                <input type="text" id="ae-value" placeholder="e.g. 2  or  3 * context.scenario" oninput="sync()">
+            </div>
+            <div class="field" id="fSeries" style="display:none">
+                <div class="lbl">Target Series <span style="opacity:.5;font-weight:400;font-size:10px">(or "all")</span></div>
+                <div class="suggestion-container">
+                    <input type="text" id="ae-series" placeholder="e.g. New Haven" oninput="sync()" autocomplete="off">
+                    <div id="seriesDropdown-AE" class="custom-dropdown"></div>
                 </div>
-            );
-        };
+            </div>
+            <div class="field" id="fCard" style="display:none">
+                <div class="lbl">Card to Spawn</div>
+                <div class="suggestion-container">
+                    <input type="text" id="ae-cardname" placeholder="Exact card name" oninput="sync()" autocomplete="off">
+                    <div id="cardDropdown-AE" class="custom-dropdown"></div>
+                </div>
+            </div>
+        </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+        <!-- Nexus extra (shown only for nexusHpToPowerUp) -->
+        <div id="fNexus" style="display:none">
+            <div class="row3">
+                <div class="field">
+                    <div class="lbl">ATK Gain</div>
+                    <input type="number" id="ae-atk" value="1" min="0" oninput="sync()">
+                </div>
+                <div class="field">
+                    <div class="lbl">HP Gain</div>
+                    <input type="number" id="ae-hp" value="1" min="0" oninput="sync()">
+                </div>
+                <div class="field">
+                    <div class="lbl">Drain from</div>
+                    <div class="pill-grid" id="gNexusSide">
+                        <div class="pill sel" data-ns="player" onclick="pick(this,'nexusSide','gNexusSide')">Player</div>
+                        <div class="pill"     data-ns="enemy"  onclick="pick(this,'nexusSide','gNexusSide')">Enemy</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- CONDITION TOGGLE -->
+        <label class="check-toggle">
+            <input type="checkbox" id="hasCond" onchange="toggleCond()">
+            <span class="cbox"></span>
+            <span class="check-label">
+                Add a Condition
+                <span class="tip-wrap">
+                    <span class="tip-icon">?</span>
+                    <span class="tip-box" style="width:310px">
+                        A <b>Condition</b> is checked at the moment the trigger fires. If it fails, the effect doesn't run.<br><br>
+                        <b>Card Present (OR)</b> passes if <i>at least one</i> of the listed cards is on the board.<br>
+                        <b>Card Present (AND)</b> passes only if <i>all</i> listed cards are on the board at the same time.<br>
+                        <b>For Each Card</b> doesn't block the effect instead, scales it: <b>context.scenario</b> equals the total count of listed cards found on the board.<br>
+                        <b>Unit Count</b> checks how many units are on a side, e.g. "enemy has less than 3 units".<br><br>
+                        After enabling a condition, set your effect value to something like <b>3 * context.scenario</b> so it only fires (or scales) when the condition is met.
+                    </span>
+                </span>
+            </span>
+        </label>
+
+        <!-- CONDITION BLOCK -->
+        <div class="cond-block" id="condBlock">
+
+            <div class="field">
+                <div class="lbl">Condition Type</div>
+                <div class="pill-grid" id="gCondType">
+                    <div class="ct-pill sel" data-ct="or"        onclick="pickCT(this)">Card Present (OR)</div>
+                    <div class="ct-pill"     data-ct="and"       onclick="pickCT(this)">Card Present (AND)</div>
+                    <div class="ct-pill"     data-ct="each"      onclick="pickCT(this)">For Each Card</div>
+                    <div class="ct-pill"     data-ct="unitCount" onclick="pickCT(this)">Unit Count</div>
+                </div>
+            </div>
+
+            <!-- Card list section -->
+            <div id="condCards">
+                <div class="field" style="margin-bottom:8px">
+                    <div class="lbl">Cards that must be on the board</div>
+                    <div class="suggestion-container">
+                        <div class="card-add-row">
+                            <input type="text" id="sc-input" placeholder="Type a card name..." autocomplete="off">
+                            <button class="btn-sm" onclick="addCard()">+ Add</button>
+                        </div>
+                        <div id="cardDropdown-Cond" class="custom-dropdown"></div>
+                    </div>
+                </div>
+                <div class="tag-row" id="scTags"></div>
+            </div>
+
+            <!-- Unit count section -->
+            <div id="condUnit" style="display:none">
+                <div class="row3">
+                    <div class="field">
+                        <div class="lbl">Side</div>
+                        <div class="pill-grid" id="gUCSide">
+                            <div class="pill sel" data-us="enemy"  onclick="pick(this,'ucSide','gUCSide')">Enemy</div>
+                            <div class="pill"     data-us="player" onclick="pick(this,'ucSide','gUCSide')">Player</div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="lbl">Operator</div>
+                        <div class="pill-grid" id="gUCOp">
+                            <div class="pill sel" data-uo="less"    onclick="pick(this,'ucOp','gUCOp')">Less than</div>
+                            <div class="pill"     data-uo="greater" onclick="pick(this,'ucOp','gUCOp')">Greater than</div>
+                            <div class="pill"     data-uo="equal"   onclick="pick(this,'ucOp','gUCOp')">Equal to</div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="lbl">Count</div>
+                        <input type="number" id="uc-threshold" value="3" min="0" max="20" oninput="sync()">
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /condBlock -->
+
+    </div><!-- /aeBody -->
+
+    <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(2)">Back</button><button class="btn btn-primary" onclick="goTo(4)">Review</button></div>
+</div>
+
+<!-- ”€ STEP 5 ”€ -->
+<div class="step-panel" id="step-4">
+    <div class="step-title">Build Your Batch</div>
+    <div class="step-sub">Queue up as many cards as you want, then save or download them together.</div>
+    <pre class="json-block" id="jsonOut"></pre>
+    <div class="batch-panel">
+        <div class="batch-head">
+            <div>
+                <div class="lbl">Cards Ready to Export</div>
+                <div class="batch-count" id="batchCount">0 cards queued</div>
+            </div>
+            <button class="btn btn-secondary" onclick="queueCurrentCard()">+ Add This Card</button>
+        </div>
+        <div class="batch-list" id="batchList"></div>
+    </div>
+    <div id="saveStatus" style="display:none"></div>
+    <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(3)">Back</button><button class="btn btn-success" onclick="saveCard()">Save / Download All</button></div>
+</div>
+
+</div><!-- /left -->
+
+<!-- Preview -->
+<div class="preview-col">
+    <div class="preview-lbl">Live Preview</div>
+    <div class="card" id="cardEl">
+        <div class="card-cost"   id="c-cost">1</div>
+        <div class="card-rarity" id="c-rarity">COMMON</div>
+        <div class="card-body">
+            <div class="card-art">NO ART</div>
+            <div class="card-name" id="c-name">NEW UNIT</div>
+        </div>
+        <div class="card-desc" id="c-desc"><span style="opacity:.4;font-style:italic">No description yet.</span></div>
+        <div class="card-atk" id="c-atk">1</div>
+        <div class="card-hp"  id="c-hp">1</div>
+    </div>
+</div>
+
+</div><!-- /main-area -->
+</div><!-- /wizard -->
+
+<script>
+
+let existingCards = [];
+
+async function refreshSuggestions() {
+    try {
+        const response = await fetch('cards.json');
+        if (response.ok) {
+            existingCards = await response.json();
+        }
+        
+        // Link the 3 input fields to their respective dropdowns
+        setupAutocomplete('f-series', 'seriesDropdown', 'series');
+        setupAutocomplete('ae-cardname', 'cardDropdown-AE', 'name');
+        setupAutocomplete('ae-series', 'seriesDropdown-AE', 'series');
+        setupAutocomplete('sc-input', 'cardDropdown-Cond', 'name');
+    } catch (e) { 
+        console.warn("Suggestions error: Ensure you are running on a local server (Live Server) to fetch cards.json", e); 
+    }
+}
+
+function setupAutocomplete(inputId, dropdownId, key) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+    if (!input || !dropdown) return;
+
+    const showMatches = () => {
+        const val = input.value.toLowerCase();
+        dropdown.innerHTML = '';
+        
+        // Get unique values from existingCards
+        const suggestions = [...new Set(existingCards.map(c => c[key]))]
+            .filter(item => item && item.toLowerCase().includes(val))
+            .sort();
+
+        if (suggestions.length > 0 && val.length > 0) {
+            suggestions.forEach(text => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.textContent = text;
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    input.value = text;
+                    dropdown.style.display = 'none';
+                    sync(); // Trigger the preview update
+                };
+                dropdown.appendChild(div);
+            });
+            dropdown.style.display = 'block';
+        } else {
+            dropdown.style.display = 'none';
+        }
+    };
+
+    input.addEventListener('input', showMatches);
+    input.addEventListener('focus', showMatches);
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+// Initialize on load
+window.addEventListener('DOMContentLoaded', refreshSuggestions);
+
+/* ”€ Effect catalogue ”€ */
+const EFFECTS=[
+  {type:'healAllies',          name:'Heal Allies',              desc:'Heals every friendly unit on the board by the value.'},
+  {type:'healNexus',           name:'Heal Nexus',               desc:'Restores the value to your Nexus (player HP).'},
+  {type:'healSelf',            name:'Heal Self',                desc:'This card heals itself up to its max HP by the value.'},
+  {type:'dealDamageAllEnemies',name:'Damage All Enemies',       desc:'Deals the value as damage to every enemy unit on the board.'},
+  {type:'attackUpSelf',        name:'+ATK to Self',             desc:'Permanently raises this card\'s Attack by the value.'},
+  {type:'hpUpSelf',            name:'+HP to Self',              desc:'Permanently raises this card\'s max and current HP by the value.'},
+  {type:'snipeDamage',         name:'Snipe Damage',             desc:'Deals the value directly to the targeted enemy unit.'},
+  {type:'splashAdjacent',      name:'Splash Adjacent',          desc:'Deals the value to enemies adjacent to the current attack target.'},
+  {type:'silenceTarget',       name:'Silence Target',           desc:'Silences the target unit for the value number of turns (their abilities are blocked).'},
+  {type:'silenceRandomEnemy',  name:'Silence Random Enemy',     desc:'Silences a random enemy unit for the value number of turns.'},
+  {type:'disableTarget',       name:'Disable Target',           desc:'Exhausts the target enemy so it can\'t attack this turn.'},
+  {type:'drawCard',            name:'Draw Cards',               desc:'Draws the value number of cards from your deck.'},
+  {type:'gainMana',            name:'Gain Mana',                desc:'Restores the value amount of mana (allowed to overflow current max mana).'},
+  {type:'discountHandBySeries',name:'Discount Hand by Series',  desc:'Reduces the mana cost of matching cards in hand by the value. Set the series to "all" to affect every card.',needsSeries:true},
+  {type:'valuePerSeriesInEnemyBoard',name:'Scale by Enemy Series',desc:'Sets context.scenario to (count of matching enemy units value). Chain this before another effect to scale by board state.',needsSeries:true},
+  {type:'applyInvincible',     name:'Apply Invincible',         desc:'Makes this card invincible for the value number of rounds blocks all incoming damage.'},
+  {type:'stealAttack',         name:'Steal ATK from Target',    desc:'Drains the value of ATK from the struck target and adds it to this card.'},
+  {type:'stealAttackFromAll',  name:'Steal ATK from All Enemies',desc:'Drains the value of ATK from every enemy and stacks it onto this card\'s ATK.'},
+  {type:'reviveSelf',          name:'Revive Self (once)',        desc:'Once per game: instead of dying, this card revives with the value HP remaining.'},
+  {type:'berserkOverflow',     name:'Berserk Overflow',         desc:'After killing a unit the excess damage carries over and hits the enemy Nexus.'},
+  {type:'yandereRage',         name:'Yandere Rage',             desc:'On death, destroys a random enemy unit dragging them down with it.'},
+  {type:'spawnCard',           name:'Spawn Card Hand',        desc:'Adds a copy of the named card to the player\'s hand (max hand size 4).',needsCard:true},
+  {type:'spawnOnBoard',        name:'Spawn Card Board',       desc:'Places a copy of the named card directly onto the board.',needsCard:true},
+  {type:'nexusHpToPowerUp',    name:'Nexus HP Power Up',      desc:'Drains value HP from a Nexus and converts it into permanent ATK + HP gains for this card.',needsNexus:true},
+  {type:'giveAllAlliesEffect', name:'Give Allies Effect',       desc:'Applies a nested sub-effect to every ally. For complex chaining edit the JSON directly for nested effects.'},
+  {type:'giveAllEnemiesEffect',name:'Give Enemies Effect',      desc:'Applies a nested sub-effect to every enemy. Edit the JSON directly for nested effects.'},
+];
+
+const RCOLS={COMMON:'#64748b',UNCOMMON:'#10b981',RARE:'#3b82f6',EPIC:'#a855f7',LEGENDARY:'#f59e0b'};
+
+/* ”€ State ”€ */
+function makeDefaultState(){
+  return {
+    name:'',series:'',rarity:'COMMON',ability:'none',
+    atk:1,hp:1,cost:1,description:'',
+    aeActive:false,
+    trigger:'onPlay',effectType:'healAllies',effectValue:'',
+    effectSeries:'',effectCardName:'',
+    atkGain:1,hpGain:1,nexusSide:'player',
+    hasCond:false,condType:'or',
+    ucSide:'enemy',ucOp:'less',ucThreshold:3,
+    condCards:[],
+  };
+}
+const S=makeDefaultState();
+let batchCards=[];
+let currentStep=0;
+
+/* ”€ Effect grid ”€ */
+function buildEffectGrid(){
+  document.getElementById('effectGrid').innerHTML=EFFECTS.map(e=>
+    `<div class="eff-card${e.type===S.effectType?' sel':''}" data-et="${e.type}" onclick="pickEff(this)">
+       <div class="eff-name">${e.name}</div>
+       <div class="eff-desc">${e.desc}</div>
+     </div>`).join('');
+}
+
+buildEffectGrid()
+
+function pickEff(el){
+  document.querySelectorAll('.eff-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  S.effectType=el.dataset.et;
+  updateExtra();
+  sync();
+}
+
+function updateExtra(){
+  const ef=EFFECTS.find(e=>e.type===S.effectType)||{};
+  document.getElementById('fSeries').style.display=ef.needsSeries?'':'none';
+  document.getElementById('fCard').style.display=ef.needsCard?'':'none';
+  document.getElementById('fNexus').style.display=ef.needsNexus?'':'none';
+}
+
+/* ”€ Navigation ”€ */
+function goTo(n){
+  document.getElementById('step-'+currentStep).classList.remove('active');
+  document.getElementById('pill-'+currentStep).classList.remove('active');
+  if(n>currentStep) document.getElementById('pill-'+currentStep).classList.add('done');
+  else              document.getElementById('pill-'+currentStep).classList.remove('done');
+  currentStep=n;
+  document.getElementById('step-'+n).classList.add('active');
+  document.getElementById('pill-'+n).classList.add('active');
+  if(n===4) renderJSON();
+}
+
+/* ”€ Generic pill picker ”€ */
+function pick(el,key,gid){
+  document.querySelectorAll('#'+gid+' .pill').forEach(p=>p.classList.remove('sel'));
+  el.classList.add('sel');
+  const v=el.dataset.r||el.dataset.a||el.dataset.ns||el.dataset.us||el.dataset.uo;
+  if(key==='rarity'){S.rarity=v;applyRarity();}
+  else if(key==='ability')   S.ability=v;
+  else if(key==='nexusSide') S.nexusSide=v;
+  else if(key==='ucSide')    S.ucSide=v;
+  else if(key==='ucOp')      S.ucOp=v;
+  sync();
+}
+function pickT(el){
+  document.querySelectorAll('.t-pill').forEach(p=>p.classList.remove('sel'));
+  el.classList.add('sel');S.trigger=el.dataset.t;sync();
+}
+function pickCT(el){
+  document.querySelectorAll('.ct-pill').forEach(p=>p.classList.remove('sel'));
+  el.classList.add('sel');S.condType=el.dataset.ct;
+  document.getElementById('condCards').style.display=S.condType!=='unitCount'?'':'none';
+  document.getElementById('condUnit').style.display=S.condType==='unitCount'?'':'none';
+  sync();
+}
+
+/* ”€ Toggles ”€ */
+function toggleAE(){
+  S.aeActive=!S.aeActive;
+  document.getElementById('aeSw').classList.toggle('on',S.aeActive);
+  document.getElementById('aeRow').classList.toggle('on',S.aeActive);
+  document.getElementById('aeBody').classList.toggle('open',S.aeActive);
+}
+function toggleCond(){
+  S.hasCond=document.getElementById('hasCond').checked;
+  document.getElementById('condBlock').classList.toggle('open',S.hasCond);
+  sync();
+}
+
+/* ”€ Condition card tags ”€ */
+function addCard(){
+  const inp=document.getElementById('sc-input');
+  const name=inp.value.trim();
+  if(!name||S.condCards.includes(name)){inp.value='';return;}
+  S.condCards.push(name);inp.value='';
+  renderTags();sync();
+}
+document.getElementById('sc-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();addCard();}
+});
+function removeCard(name){
+  S.condCards=S.condCards.filter(n=>n!==name);
+  renderTags();sync();
+}
+function renderTags(){
+  document.getElementById('scTags').innerHTML=S.condCards.map(n=>
+    `<div class="tag">${n}<span class="tag-x" onclick="removeCard('${n.replace(/'/g,"\\'")}')">—</span></div>`).join('');
+}
+
+/* ”€ Stat steppers ”€ */
+function adj(k,d){
+  S[k]=Math.max(0,Math.min(99,S[k]+d));
+  const el=document.getElementById('val-'+k);
+  el.textContent=S[k];el.classList.remove('stat-pop');
+  void el.offsetWidth;el.classList.add('stat-pop');
+  updateCard();
+}
+
+/* ”€ Description helper ”€ */
+function ins(snippet){
+  const ta=document.getElementById('f-desc');
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+snippet+ta.value.slice(e);
+  ta.focus();ta.setSelectionRange(s+snippet.length,s+snippet.length);
+  sync();
+}
+
+/* ”€ Sync inputs †’ state ”€ */
+function sync(){
+  S.name        =document.getElementById('f-name').value.trim();
+  S.series      =document.getElementById('f-series').value.trim();
+  S.description =document.getElementById('f-desc').value;
+  S.effectValue =document.getElementById('ae-value').value;
+  S.effectSeries=document.getElementById('ae-series').value;
+  S.effectCardName=document.getElementById('ae-cardname').value;
+  S.atkGain     =parseInt(document.getElementById('ae-atk').value)||1;
+  S.hpGain      =parseInt(document.getElementById('ae-hp').value)||1;
+  S.ucThreshold =parseInt(document.getElementById('uc-threshold').value)||0;
+  updateCard();
+}
+
+/* ”€ Card preview ”€ */
+function applyRarity(){
+  const col=RCOLS[S.rarity]||'#64748b';
+  const card=document.getElementById('cardEl');
+  card.style.borderColor=col;
+  card.style.boxShadow=`0 0 20px ${col}44,0 20px 40px rgba(0,0,0,.7)`;
+  card.classList.remove('rflash');void card.offsetWidth;card.classList.add('rflash');
+  document.getElementById('c-rarity').textContent=S.rarity;
+}
+function updateCard(){
+  document.getElementById('c-name').textContent =S.name||'NEW UNIT';
+  document.getElementById('c-cost').textContent =S.cost;
+  document.getElementById('c-atk').textContent  =S.atk;
+  document.getElementById('c-hp').textContent   =S.hp;
+  const desc=document.getElementById('c-desc');
+  if(!S.description){
+    desc.innerHTML='<span style="opacity:.4;font-style:italic">No description yet.</span>';
+  } else {
+    desc.innerHTML=renderDesc(S.description);
+  }
+}
+
+/* ”€ Description renderer ”€ */
+function renderDesc(text){
+  return text.split('\\n').map(line=>{
+    if(line.trim()==='---') return '<div style="width:100%;height:1px;background:rgba(167,139,250,.3);margin:3px 0"></div>';
+    return '<div>'+parseLine(line)+'</div>';
+  }).join('');
+}
+function parseLine(t){
+  if(!t) return '';
+  t=t.replace(/\{\{hidden\}\}.*?\{\{\/hidden\}\}/g,'');
+  t=t.replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g,'<span style="color:#22d3ee;font-weight:700;text-decoration:underline">$1</span>');
+  t=t.replace(/£\{(.*?)\}£/g,'<span style="font-style:italic;opacity:.8">$1</span>');
+  t=t.replace(/\/([a-zA-Z#0-9]+)\/(.*?)\//g,'<span style="color:$1;font-weight:700">$2</span>');
+  t=t.replace(/\*\*(.*?)\*\*/g,'<span style="font-weight:900;color:#fff;text-shadow:0 0 8px rgba(255,255,255,.4)">$1</span>');
+  t=t.replace(/_(\d+px)_(.*?)_/g,'<span style="font-size:$1">$2</span>');
+  t=t.replace(/\[rainbow\](.*?)\[\/rainbow\]/g,'<span style="background:linear-gradient(to right,#ef4444,#eab308,#22c55e,#3b82f6,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900">$1</span>');
+  t=t.replace(/\{shake\}(.*?)\{\/shake\}/g,'<span style="color:#f87171">$1</span>');
+  t=t.replace(/#atk#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#ef4444" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/></svg>');
+  t=t.replace(/#hp#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#22c55e" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>');
+  t=t.replace(/#cost#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#818cf8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>');
+  t=t.replace(/\[(?:flat|stretch)[^\]]*\](.*?)\[\/(?:flat|stretch)\]/g,'$1');
+  return t;
+}
+
+/* ”€ JSON build ”€ */
+function buildCard(){
+  const out={
+    name:S.name||'New Unit',atk:S.atk,hp:S.hp,cost:S.cost,
+    rarity:S.rarity,ability:S.ability,
+    series:S.series||'Original',description:S.description
+  };
+  if(S.aeActive){
+    const ef={type:S.effectType};
+    const info=EFFECTS.find(e=>e.type===S.effectType)||{};
+    if(info.needsSeries) ef.series=S.effectSeries;
+    if(info.needsCard){ef.cardName=S.effectCardName;ef.amount=1;}
+    if(info.needsNexus){ef.atkGain=S.atkGain;ef.hpGain=S.hpGain;ef.target=S.nexusSide;}
+    if(S.effectValue!==''){const n=Number(S.effectValue);ef.value=isNaN(n)?S.effectValue:n;}
+    if(S.hasCond){
+      const sc={type:S.condType};
+      if(S.condType==='unitCount'){
+        sc.side=S.ucSide;sc.operator=S.ucOp;sc.threshold=S.ucThreshold;sc.positive=1;sc.negative=0;
+      } else {
+        sc.cards=[...S.condCards];
+        if(S.condType==='each') sc.value=1;
+        else{sc.positive=1;sc.negative=0;}
+      }
+      ef.scenario=sc;
+    }
+    out.abilities={[S.trigger]:[ef]};
+  }
+  return out;
+}
+
+function hasMeaningfulDraft(){
+  return Boolean(
+    S.name.trim() ||
+    S.series.trim() ||
+    S.description.trim() ||
+    S.atk!==1 || S.hp!==1 || S.cost!==1 ||
+    S.rarity!=='COMMON' || S.ability!=='none' ||
+    S.aeActive
+  );
+}
+
+function upsertCard(list, card){
+  const next=[...list];
+  const idx=next.findIndex(c=>c.name===card.name);
+  if(idx>=0) next[idx]=card;
+  else next.push(card);
+  return next;
+}
+
+function removeQueuedCard(index){
+  batchCards=batchCards.filter((_,i)=>i!==index);
+  renderBatchList();
+  renderJSON();
+}
+
+function renderBatchList(){
+  const countEl=document.getElementById('batchCount');
+  const listEl=document.getElementById('batchList');
+  if(countEl) countEl.textContent=`${batchCards.length} card${batchCards.length===1?'':'s'} queued`;
+  if(!listEl) return;
+  if(batchCards.length===0){
+    listEl.innerHTML='<div class="batch-empty">No cards queued yet. Add this draft when it looks right, then keep building the next one.</div>';
+    return;
+  }
+  listEl.innerHTML=batchCards.map((card,index)=>`
+    <div class="batch-item">
+      <div class="batch-meta">
+        <div class="batch-name">${card.name}</div>
+        <div class="batch-sub">${card.series} · ${card.rarity} · ${card.cost} cost · ${card.atk}/${card.hp}</div>
+      </div>
+      <button class="btn btn-ghost" onclick="removeQueuedCard(${index})">Remove</button>
+    </div>
+  `).join('');
+}
+
+function renderJSON(){
+  const preview=batchCards.length ? batchCards : buildCard();
+  document.getElementById('jsonOut').textContent=JSON.stringify(preview,null,4);
+}
+
+function syncFormFromState(){
+  document.getElementById('f-name').value=S.name;
+  document.getElementById('f-series').value=S.series;
+  document.getElementById('f-desc').value=S.description;
+  document.getElementById('ae-value').value=S.effectValue;
+  document.getElementById('ae-series').value=S.effectSeries;
+  document.getElementById('ae-cardname').value=S.effectCardName;
+  document.getElementById('ae-atk').value=S.atkGain;
+  document.getElementById('ae-hp').value=S.hpGain;
+  document.getElementById('uc-threshold').value=S.ucThreshold;
+  document.getElementById('val-atk').textContent=S.atk;
+  document.getElementById('val-hp').textContent=S.hp;
+  document.getElementById('val-cost').textContent=S.cost;
+  document.querySelectorAll('#gRarity .pill').forEach(p=>p.classList.toggle('sel',p.dataset.r===S.rarity));
+  document.querySelectorAll('#gAbility .pill').forEach(p=>p.classList.toggle('sel',p.dataset.a===S.ability));
+  document.querySelectorAll('.t-pill').forEach(p=>p.classList.toggle('sel',p.dataset.t===S.trigger));
+  document.querySelectorAll('#gCondType .ct-pill').forEach(p=>p.classList.toggle('sel',p.dataset.ct===S.condType));
+  document.querySelectorAll('#gNexusSide .pill').forEach(p=>p.classList.toggle('sel',p.dataset.ns===S.nexusSide));
+  document.querySelectorAll('#gUCSide .pill').forEach(p=>p.classList.toggle('sel',p.dataset.us===S.ucSide));
+  document.querySelectorAll('#gUCOp .pill').forEach(p=>p.classList.toggle('sel',p.dataset.uo===S.ucOp));
+  document.querySelectorAll('.eff-card').forEach(p=>p.classList.toggle('sel',p.dataset.et===S.effectType));
+  document.getElementById('hasCond').checked=S.hasCond;
+  document.getElementById('condBlock').classList.toggle('open',S.hasCond);
+  document.getElementById('condCards').style.display=S.condType!=='unitCount'?'':'none';
+  document.getElementById('condUnit').style.display=S.condType==='unitCount'?'':'none';
+  document.getElementById('aeSw').classList.toggle('on',S.aeActive);
+  document.getElementById('aeRow').classList.toggle('on',S.aeActive);
+  document.getElementById('aeBody').classList.toggle('open',S.aeActive);
+  renderTags();
+  updateExtra();
+  applyRarity();
+  updateCard();
+}
+
+function resetDraft(){
+  Object.assign(S, makeDefaultState());
+  syncFormFromState();
+}
+
+function queueCurrentCard(){
+  const statusEl=document.getElementById('saveStatus');
+  if(!S.name.trim()){
+    statusEl.style.display='';
+    statusEl.className='status-msg status-warn';
+    statusEl.textContent='Add a card name before queuing this card.';
+    return;
+  }
+  const newCard=buildCard();
+  const existed=batchCards.some(card=>card.name===newCard.name);
+  batchCards=upsertCard(batchCards,newCard);
+  renderBatchList();
+  renderJSON();
+  statusEl.style.display='';
+  statusEl.className='status-msg status-ok';
+  statusEl.textContent=existed ? `Updated "${newCard.name}" in the batch.` : `Queued "${newCard.name}". You can start the next card now.`;
+  resetDraft();
+  goTo(0);
+}
+
+/* ”€ Save ”€ */
+async function saveCard(){
+  let exportCards=[...batchCards];
+  if(hasMeaningfulDraft() && S.name.trim()) exportCards=upsertCard(exportCards,buildCard());
+  const statusEl=document.getElementById('saveStatus');
+  if(exportCards.length===0){
+    statusEl.style.display='';
+    statusEl.className='status-msg status-warn';
+    statusEl.textContent='Queue a card or finish the current draft before saving.';
+    return;
+  }
+  statusEl.style.display='';statusEl.className='status-msg';statusEl.textContent='Saving...';
+  let cards=[];
+  try{const r=await fetch('cards.json');if(r.ok) cards=await r.json();}catch(e){}
+  let updated=0;
+  let added=0;
+  for(const newCard of exportCards){
+    const idx=cards.findIndex(c=>c.name===newCard.name);
+    if(idx>=0){cards[idx]=newCard;updated++;}
+    else {cards.push(newCard);added++;}
+  }
+  let saved=false;
+  for(const[m,u] of[['PUT','cards.json'],['POST','/save-cards']]){
+    try{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify(cards,null,2)});if(r.ok){saved=true;break;}}catch(e){}
+  }
+  if(saved){
+    statusEl.className='status-msg status-ok';
+    statusEl.textContent='Saved ' + exportCards.length + ' card' + (exportCards.length===1?'':'s') + ' (' + added + ' added, ' + updated + ' updated).';
+  } else {
+    const a=Object.assign(document.createElement('a'),{
+      href:URL.createObjectURL(new Blob([JSON.stringify(cards,null,2)],{type:'application/json'})),
+      download:'cards.json'
+    });
+    a.click();URL.revokeObjectURL(a.href);
+    statusEl.className='status-msg status-ok';
+    statusEl.textContent='Downloaded cards.json with ' + exportCards.length + ' card' + (exportCards.length===1?'':'s') + ' ready to merge in.';
+  }
+}
+buildEffectGrid();
+updateExtra();
+renderBatchList();
+updateCard();
+</script>
 </body>
 </html>
+

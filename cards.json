@@ -63,16 +63,24 @@
     "series": "New Haven",
     "description": "When played will deal /darkred/1 damage/ to all enemies. Will deal /darkred/2 dmg/ if /white/Natalie/ or /white/Jane/ is in play.",
     "abilities": {
-        "onPlay": [{ "type": "dealDamageAllEnemies", "damage": "1 + context.scenario" }],
-        "scenario": {
-          "type": "or",
-          "cards": ["Natalie Bergeron", "Jane"],
-          "positive": 1,
-          "negative": 0
+      "onPlay": [
+        {
+          "type": "dealDamageAllEnemies",
+          "damage": "1 + context.scenario"
         }
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Natalie Bergeron",
+          "Jane"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
     }
   },
-{
+  {
     "name": "Jane",
     "atk": 2,
     "hp": 4,
@@ -112,19 +120,19 @@
     "description": "£{If Quinta knows she's got easy prey, she **/red/strikes/**!}£ /n---/n _10px_Deals 3 damage to all enemies if there's 2 or less enemies._",
     "abilities": {
       "scenario": {
-      "type": "unitCount",
-      "side": "enemy",
-      "operator": "less",
-      "threshold": 3,
-      "positive": 1,
-      "negative": 0
-    },
-    "onPlay": [
-      {
-        "type": "dealDamageAllEnemies",
-        "value": 3
-      }
-    ]
+        "type": "unitCount",
+        "side": "enemy",
+        "operator": "less",
+        "threshold": 3,
+        "positive": 1,
+        "negative": 0
+      },
+      "onPlay": [
+        {
+          "type": "dealDamageAllEnemies",
+          "value": "3 * context.scenario"
+        }
+      ]
     }
   },
   {
@@ -135,21 +143,23 @@
     "rarity": "UNCOMMON",
     "ability": "guard",
     "series": "New Haven",
-    "description": "A /green/guard/ that will tank hits, if Cheetor is played before this Clara will gain /lightgreen/+3 hp/.",
+    "description": "A /green/guard/ that will tank hits, if [[Cheetor]] is played before this Clara will gain /lightgreen/+3 hp/.",
     "abilities": {
-        "onPlay": [
-        { 
-          "type": "hpUpSelf", 
-          "value": "context.scenario * 3",
-          "scenario": {
-            "type": "or",
-            "cards": ["Cheetor"],
-            "positive": 1,
-            "negative": 0
-          }
+      "onPlay": [
+        {
+          "type": "hpUpSelf",
+          "value": "3 * context.scenario"
         }
-      ]
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Cheetor"
+        ],
+        "positive": 1,
+        "negative": 0
       }
+    }
   },
   {
     "name": "Asuka",
@@ -161,42 +171,118 @@
     "series": "New Haven",
     "description": "Will do /darkred/2 damage/ #atk# to _13px_all_ enemies if there are **/white/New Haven/** cards on the enemy board.",
     "abilities": {
-        "onPlay": [
-          { 
-            "type": "valuePerSeriesInEnemyBoard", 
-            "series": "New Haven", 
-            "value": 2 
-          },
-          { 
-            "type": "dealDamageAllEnemies", 
-            "value": "context.scenario" 
-          }
-        ]
-      }
+      "onPlay": [
+        {
+          "type": "valuePerSeriesInEnemyBoard",
+          "series": "New Haven",
+          "value": "2 * context.scenario"
+        },
+        {
+          "type": "dealDamageAllEnemies",
+          "value": "context.scenario"
+        }
+      ]
+    }
   },
   {
     "name": "Cheetor",
     "atk": 3,
     "hp": 4,
-    "cost": 4,
+    "cost": 3,
     "rarity": "RARE",
     "ability": "haste",
     "series": "New Haven",
-    "description": "/pink/Haste/. If /white/Clara Garcia/ is in play, gain /darkred/+3 attack/ {shake}#atk#{/shake}.",
+    "description": "/pink/Haste/. If [[Clara Garcia]] is in play, gain /darkred/+3 attack/ {shake}#atk#{/shake}.",
     "abilities": {
-        "onPlay": [
-        { 
-          "type": "attackUpSelf", 
-          "value": "context.scenario * 3",
-          "scenario": {
-            "type": "or",
-            "cards": ["Clara Garcia"],
-            "positive": 1,
-            "negative": 0
-          }
+      "onPlay": [
+        {
+          "type": "attackUpSelf",
+          "value": "3 * context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Clara Garcia"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
+    }
+  },
+  {
+    "name": "Doe",
+    "atk": 5,
+    "hp": 2,
+    "cost": 3,
+    "rarity": "EPIC",
+    "ability": "none",
+    "series": "New Haven",
+    "description": "**Doe** is great scientist, always happy to invent something new~ /n _10px_Starts of weak but gets stronger over time, /lightgreen/+2 hp/._",
+    "abilities": {
+      "onTurnEnd": [
+        {
+          "type": "hpUpSelf",
+          "value": 2
         }
       ]
-      }
+    }
+  },
+  {
+    "name": "Bucky",
+    "atk": 5,
+    "hp": 2,
+    "cost": 3,
+    "rarity": "RARE",
+    "ability": "haste",
+    "series": "New Haven",
+    "description": "**Bucky** is a fast and agile unit, always ready to strike first. /n _12px_Spawns [[Website Distract]] when spawned!_",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "spawnCard",
+          "cardName": "Website Distract",
+          "amount": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "Joey",
+    "atk": 1,
+    "hp": 3,
+    "cost": 2,
+    "rarity": "UNCOMMON",
+    "ability": "none",
+    "series": "New Haven",
+    "description": "Joey is a /n[flat*250]/mediumaquamarine/lazy/[/flat]/n kangaroo, when played /cyan/restores/ 3 of your mana!",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "gainMana",
+          "value": 3
+        }
+      ]
+    }
+  },
+  {
+    "name": "Jill",
+    "atk": 1,
+    "hp": 3,
+    "cost": 2,
+    "rarity": "UNCOMMON",
+    "ability": "none",
+    "series": "New Haven",
+    "description": "**Jill** lessens the /lightblue/cost/ of all cards in your hand by /lightblue/1/!",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "discountHandBySeries",
+          "value": "1",
+          "series": "all"
+        }
+      ]
+    }
   },
   {
     "name": "Kijo",
@@ -289,7 +375,8 @@
       "onTurnEnd": [
         {
           "type": "healSelf",
-          "value": 2
+          "value": 2,
+          "text": "Too slow. You're wide open!"
         }
       ]
     }
@@ -304,13 +391,23 @@
     "series": "Adoptive Life",
     "description": "/yellow/Healer/ that restores your /lightgreen/hp/ when played. /n She will also gain /lightgreen/+2 hp/ for each her family is in play.",
     "abilities": {
-        "onPlay": [{ "type": "hpUpSelf", "value": "context.scenario" }],
-        "scenario": {
-          "type": "each",
-          "cards": ["Kayla Kate", "Farley Kate", "Harris Kate", "Fami Moft"],
-          "value": 2
+      "onPlay": [
+        {
+          "type": "hpUpSelf",
+          "value": "context.scenario"
         }
+      ],
+      "scenario": {
+        "type": "each",
+        "cards": [
+          "Kayla Kate",
+          "Farley Kate",
+          "Harris Kate",
+          "Fami Moft"
+        ],
+        "value": 2
       }
+    }
   },
   {
     "name": "James Lone",
@@ -358,13 +455,22 @@
     "series": "Adoptive Life",
     "description": "[rainbow]Rich guy[/rainbow], makes you /gold/draw/ cards for each of his friends in play.",
     "abilities": {
-        "onPlay": [{ "type": "drawCard", "amount": "context.scenario" }],
-        "scenario": {
-          "type": "each",
-          "cards": ["James Lone", "Maiko", "Hayley"],
-          "value": 1
+      "onPlay": [
+        {
+          "type": "drawCard",
+          "amount": "context.scenario"
         }
+      ],
+      "scenario": {
+        "type": "each",
+        "cards": [
+          "James Lone",
+          "Maiko",
+          "Hayley"
+        ],
+        "value": 1
       }
+    }
   },
   {
     "name": "Aunt Julie",
@@ -415,7 +521,8 @@
     "abilities": {
       "onAttack": [
         {
-          "type": "silenceTarget"
+          "type": "silenceTarget",
+          "value": 1
         }
       ]
     }
@@ -425,20 +532,36 @@
     "atk": 2,
     "hp": 2,
     "cost": 2,
-    "rarity": "RARE",
-    "ability": "silence",
+    "rarity": "UNCOMMON",
+    "ability": "none",
     "series": "Adoptive Life",
-    "description": "The Owner of ''Le gingembre'' cafe, /lightgreen/heals/ everyone when attacking for /lightgreen/1 hp/."
+    "description": "The Owner of ''Le gingembre'' cafe, /lightgreen/heals/ everyone when attacking for /lightgreen/1 hp/.",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "healAllies",
+          "value": "1"
+        }
+      ]
+    }
   },
   {
     "name": "Farley Kate",
     "atk": 2,
     "hp": 2,
     "cost": 2,
-    "rarity": "RARE",
-    "ability": "silence",
+    "rarity": "UNCOMMON",
+    "ability": "none",
     "series": "Adoptive Life",
-    "description": "/grey/Silencer/ that disables enemy abilities when attacking."
+    "description": "The Father of the /orange/Kates/! /n---/n /slateblue/+2 Splash Damage/.",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "splashAdjacent",
+          "damage": 2
+        }
+      ]
+    }
   },
   {
     "name": "Harris Kate",
@@ -479,29 +602,63 @@
   },
   {
     "name": "Misaki",
-    "atk": 3,
+    "atk": 2,
     "hp": 3,
     "cost": 3,
     "rarity": "RARE",
     "ability": "none",
-    "series": "Atarashī gakkō; Secret Garden!"
-  },
-  {
-    "name": "Eri",
-    "atk": 6,
-    "hp": 2,
-    "cost": 4,
-    "rarity": "LEGENDARY",
-    "ability": "haste",
     "series": "Atarashī gakkō; Secret Garden!",
-    "description": "Legendary attacker with haste and a powerful on-play effect that draws a card.",
     "abilities": {
       "onPlay": [
         {
+          "type": "discountHandBySeries",
+          "series": "all",
+          "value": 1
+        },
+        {
           "type": "drawCard",
-          "amount": 1
+          "amount": "1 + context.scenario"
         }
-      ]
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "player",
+        "operator": "greater",
+        "threshold": 2,
+        "positive": 1,
+        "negative": 0
+      }
+    },
+    "description": "£{''Why am I even here... fine, whatever.''}£ /n---/n **SENSEI**: On play, reduces cost of all cards in hand by /lightblue/1/ and draws /lightblue/1 card/. If there are /white/3 or more allies/ on the board, draws /lightblue/2 cards/ instead — numb veteran, bigger class, more output."
+  },
+  {
+    "name": "Eri",
+    "atk": 4,
+    "hp": 3,
+    "cost": 3,
+    "rarity": "RARE",
+    "ability": "haste",
+    "series": "Atarashī gakkō; Secret Garden!",
+    "description": "£{''I have more common sense than all of you combined!''}£ /n---/n /pink/Haste/. **HOTBLOODED**: On play, deals /red/2 damage/ to all enemies. If [[Arisa]] is also in play, deals /red/4 damage/ total to all enemies — rivals push each other past their limits.",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "dealDamageAllEnemies",
+          "value": 2
+        },
+        {
+          "type": "dealDamageAllEnemies",
+          "value": "2 * context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Arisa"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
     }
   },
   {
@@ -509,10 +666,10 @@
     "atk": 1,
     "hp": 2,
     "cost": 1,
-    "rarity": "RARE",
+    "rarity": "UNCOMMON",
     "ability": "echo",
     "series": "Atarashī gakkō; Secret Garden!",
-    "description": "Spawns a [[Dolphin]]!",
+    "description": "£{''Goro would know what to do!''}£ /n---/n /pink/Echo/. **DOLPHIN DREAM**: When played, summons a [[Dolphin]] to the board. Her daydreams have a way of becoming real.",
     "abilities": {
       "onPlay": [
         {
@@ -525,21 +682,47 @@
   },
   {
     "name": "Arisa",
-    "atk": 4,
-    "hp": 1,
-    "cost": 2,
-    "rarity": "RARE",
-    "ability": "haste",
-    "series": "Atarashī gakkō; Secret Garden!"
+    "atk": 2,
+    "hp": 3,
+    "cost": 3,
+    "rarity": "EPIC",
+    "ability": "echo",
+    "series": "Atarashī gakkō; Secret Garden!",
+    "description": "£{''Oh, I'm not taking it. I'm simply borrowing it... permanently.''}£ /n---/n /pink/Echo/. **MANIPULATE**: On play, /red/steals 1 ATK/ from every enemy unit. If [[Helga]] is in play, she steals /red/2 ATK/ per enemy instead — the headmistress backing her schemes. #atk#",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "stealAttackFromAll",
+          "value": "1 + context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Helga"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Helga",
-    "atk": 5,
-    "hp": 2,
-    "cost": 4,
-    "rarity": "RARE",
-    "ability": "haste",
-    "series": "Atarashī gakkō; Secret Garden!"
+    "atk": 2,
+    "hp": 7,
+    "cost": 6,
+    "rarity": "LEGENDARY",
+    "ability": "guard",
+    "series": "Atarashī gakkō; Secret Garden!",
+    "description": "£{''...''}£ /n---/n /lightgreen/Guard/. **HEADMISTRESS**: On play, permanently reduces every enemy's Max HP by /red/2/. She says nothing. She feels nothing. The whole field suffers.",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "curseAllEnemies",
+          "value": 2
+        }
+      ]
+    }
   },
   {
     "name": "Hina",
@@ -561,138 +744,386 @@
   },
   {
     "name": "Miracle",
-    "atk": 1,
-    "hp": 4,
-    "cost": 2,
+    "atk": 2,
+    "hp": 5,
+    "cost": 4,
     "rarity": "EPIC",
     "ability": "guard",
     "series": "Legend Of You",
-    "description": "_20px_/red/YANDERE!/_--- A /lightgreen/guard/ girl that can shield you from harm. /purple/Lifesteal/.",
+    "description": "£{''No one gets to have you but me.''}£ /n---/n /lightgreen/Guard/. /green/Lifesteal/ — heals herself equal to ATK on each attack. **YANDERE RAGE**: On death, /red/destroys a random enemy/ — she will not go alone. If she is the /white/last ally/ on the board, she destroys /red/2 enemies/.",
     "abilities": {
       "onAttack": [
         {
           "type": "healSelf",
           "value": "card.atk"
         }
-      ]
-     }
+      ],
+      "onDeath": [
+        {
+          "type": "yandereRage"
+        },
+        {
+          "type": "yandereRage",
+          "value": "context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "player",
+        "operator": "equal",
+        "threshold": 1,
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Faneel",
-    "atk": 4,
-    "hp": 5,
-    "cost": 5,
-    "rarity": "EPIC",
+    "atk": 3,
+    "hp": 4,
+    "cost": 3,
+    "rarity": "RARE",
     "ability": "snipe",
-    "series": "Legend Of You"
+    "series": "Legend Of You",
+    "description": "£{''I wasn't stealing it. I was just holding it... permanently.''}£ /n---/n /slategray/Snipe/. **KLEPTOMANIAC**: On each attack, /red/steals 1 ATK/ from the target. If the enemy board has /white/3 or more units/, she steals /red/2 ATK/ instead — more targets, more to take. #atk#",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "stealAttack",
+          "value": "1 + context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "enemy",
+        "operator": "greater",
+        "threshold": 2,
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Ophelia",
-    "atk": 2,
-    "hp": 3,
-    "cost": 3,
-    "rarity": "RARE",
+    "atk": 1,
+    "hp": 4,
+    "cost": 2,
+    "rarity": "UNCOMMON",
     "ability": "heal",
-    "series": "Legend Of You"
+    "series": "Legend Of You",
+    "description": "£{''The voices told me to save you, dear lamb.''}£ /n---/n **THE VOICES**: When she attacks, /lightgreen/heals your Nexus for 2/. She believes every drop of blood she draws is an act of mercy.",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "healNexus",
+          "value": 2
+        }
+      ]
+    }
   },
   {
     "name": "Daphne",
-    "atk": 3,
-    "hp": 3,
-    "cost": 4,
-    "rarity": "RARE",
+    "atk": 4,
+    "hp": 6,
+    "cost": 7,
+    "rarity": "LEGENDARY",
     "ability": "snipe",
-    "series": "Legend Of You"
+    "series": "Legend Of You",
+    "description": "£{''Humans. Less than bugs.''}£ /n---/n /slategray/Snipe/. **SUBJUGATION**: On play, permanently reduces every enemy's Max HP by /red/3/ AND deals /red/3 damage/ to all enemy units. She arrived to reduce humanity to livestock.",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "curseAllEnemies",
+          "value": 3
+        },
+        {
+          "type": "dealDamageAllEnemies",
+          "value": 3
+        }
+      ]
+    }
   },
   {
     "name": "Shirayukihime",
-    "atk": 2,
-    "hp": 4,
-    "cost": 3,
-    "rarity": "UNCOMMON",
-    "ability": "guard",
-    "series": "Legend Of You"
+    "atk": 3,
+    "hp": 3,
+    "cost": 4,
+    "rarity": "EPIC",
+    "ability": "haste2",
+    "series": "Legend Of You",
+    "description": "£{''The blade sings. I must answer.''}£ /n---/n /darkred/Haste2/ — strikes twice per turn. **SOUL EATER**: On each attack, /red/steals 1 ATK/ from the target. If she is the /white/only unit/ on the board, steals /red/2 ATK/ — the katana grows most powerful in solitude. #atk#",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "stealAttack",
+          "value": "1 + context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "player",
+        "operator": "equal",
+        "threshold": 1,
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Rimu Hiraga",
-    "atk": 3,
+    "atk": 2,
     "hp": 2,
-    "cost": 3,
-    "rarity": "UNCOMMON",
+    "cost": 1,
+    "rarity": "COMMON",
     "ability": "echo",
-    "series": "Bloodlines"
+    "series": "Bloodlines",
+    "description": "£{''They must be stupid, just like you!''}£ /n---/n /pink/Echo/. **TINKERER**: When played, /lightblue/draws 1 card/. A clumsy inventor who always brings something useful.",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "drawCard",
+          "amount": 1
+        }
+      ]
+    }
   },
   {
     "name": "Sakura Tooyama",
-    "atk": 4,
-    "hp": 1,
+    "atk": 3,
+    "hp": 2,
     "cost": 2,
-    "rarity": "UNCOMMON",
+    "rarity": "RARE",
     "ability": "haste",
-    "series": "Bloodlines"
+    "series": "Bloodlines",
+    "description": "£{''I will prove I deserve this more than anyone.''}£ /n---/n /pink/Haste/. **RIVAL SPIRIT**: Gains /red/+3 ATK/ when played alone — no allies needed to prove herself. If allies ARE present, she draws /lightblue/1 card/ instead. #atk#",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "attackUpSelf",
+          "value": "3 * context.scenario"
+        },
+        {
+          "type": "drawCard",
+          "amount": "1 - context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "player",
+        "operator": "equal",
+        "threshold": 0,
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Aoi Kananori",
-    "atk": 5,
-    "hp": 4,
-    "cost": 5,
+    "atk": 2,
+    "hp": 3,
+    "cost": 3,
     "rarity": "RARE",
-    "ability": "snipe",
-    "series": "Bloodlines"
+    "ability": "echo",
+    "series": "Bloodlines",
+    "description": "£{''I just want to understand everything better!''}£ /n---/n /pink/Echo/. **BOOKWORM**: When played, /lightblue/draws 1 card/. If [[Rimu Hiraga]] is on the board, also /lightgreen/heals all allies for 2/ (they bond quickly). #hp#",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "drawCard",
+          "amount": 1
+        },
+        {
+          "type": "healAllies",
+          "value": "2 * context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Rimu Hiraga"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Ayaka Yamanami",
-    "atk": 3,
-    "hp": 5,
+    "atk": 2,
+    "hp": 4,
+    "cost": 3,
+    "rarity": "UNCOMMON",
+    "ability": "none",
+    "series": "Bloodlines",
+    "description": "£{''I'm just a kind and caring caretaker, after all.''}£ /n---/n **DEVOTED**: At the start of each turn, /lightgreen/heals all allies for 1 HP/. She tends to everyone without asking.",
+    "abilities": {
+      "onTurnStart": [
+        {
+          "type": "healAllies",
+          "value": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "Shino Okita",
+    "atk": 4,
+    "hp": 3,
     "cost": 4,
-    "rarity": "RARE",
-    "ability": "splash",
-    "series": "Bloodlines"
+    "rarity": "EPIC",
+    "ability": "snipe",
+    "series": "Bloodlines",
+    "description": "£{''A smile does not improve combat readiness.''}£ /n---/n /slategray/Snipe/. **BODYGUARD**: On attack, /red/silences/ the target for 1 turn. If she is the /white/only unit/ on your board, also deals /red/+3 bonus snipe damage/ — she is most dangerous alone.",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "silenceTarget",
+          "value": 1
+        },
+        {
+          "type": "snipeDamage",
+          "damage": "3 * context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "player",
+        "operator": "equal",
+        "threshold": 1,
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Saito Iroha",
-    "atk": 2,
-    "hp": 6,
+    "atk": 3,
+    "hp": 4,
     "cost": 4,
-    "rarity": "RARE",
-    "ability": "guard",
-    "series": "Bloodlines"
+    "rarity": "EPIC",
+    "ability": "snipe",
+    "series": "Bloodlines",
+    "description": "£{''Accidents happen. Just remember, I'm always nearby.''}£ /n---/n /slategray/Snipe/. **HIDDEN BLADE**: On play, /red/silences a random enemy/ for 1 turn. If there are /white/2 or fewer enemies/ on the board, silences /red/2 targets/ instead — nobody expects the airhead.",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "silenceRandomEnemy",
+          "value": 1
+        },
+        {
+          "type": "silenceRandomEnemy",
+          "value": "context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "enemy",
+        "operator": "less",
+        "threshold": 3,
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Mai Yamanobe",
-    "atk": 4,
-    "hp": 4,
-    "cost": 4,
-    "rarity": "RARE",
-    "ability": "disable",
-    "series": "Bloodlines"
+    "atk": 2,
+    "hp": 3,
+    "cost": 2,
+    "rarity": "UNCOMMON",
+    "ability": "heal",
+    "series": "Bloodlines",
+    "description": "£{''It's just part of being the best listener.''}£ /n---/n **RIVERSIDE CARE**: When she attacks, /lightgreen/heals your Nexus for 2/. Life by the water teaches you to nurture others.",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "healNexus",
+          "value": 2
+        }
+      ]
+    }
   },
   {
     "name": "Haruka Hijikata",
     "atk": 3,
-    "hp": 3,
+    "hp": 4,
     "cost": 3,
     "rarity": "RARE",
     "ability": "none",
-    "series": "Bloodlines"
+    "series": "Bloodlines",
+    "description": "£{''And yet, you keep me around. Must be my charm.''}£ /n---/n **COMMANDER**: On play, gives all allies /red/+1 ATK/. If [[Shino Okita]] is also on the board, the bonus becomes /red/+2 ATK/ — discipline and fire working together. #atk#",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "giveAllAlliesEffect",
+          "effect": {
+            "type": "attackUpSelf",
+            "value": "1 + context.scenario"
+          }
+        }
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Shino Okita"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Shogun Kagetora",
-    "atk": 0,
-    "hp": 0,
-    "cost": 0,
-    "rarity": "EPIC",
-    "ability": "none",
-    "series": "Bloodlines"
+    "atk": 3,
+    "hp": 8,
+    "cost": 7,
+    "rarity": "LEGENDARY",
+    "ability": "guard",
+    "series": "Bloodlines",
+    "description": "£{''My duty is to ensure peace and prosperity for all.''}£ /n---/n /lightgreen/Guard/. **SHOGUNATE**: At the start of each turn, /lightgreen/heals all allies for 2 HP/. If [[Haruka Hijikata]] AND [[Shino Okita]] are both in play, the heal becomes /lightgreen/+4 HP/ — his full council restored.",
+    "abilities": {
+      "onTurnStart": [
+        {
+          "type": "healAllies",
+          "value": "2 + 2 * context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "and",
+        "cards": [
+          "Haruka Hijikata",
+          "Shino Okita"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Mr.Bandit",
-    "atk": 0,
-    "hp": 0,
-    "cost": 0,
+    "atk": 3,
+    "hp": 2,
+    "cost": 2,
     "rarity": "COMMON",
-    "ability": "none",
-    "series": "Bloodlines"
+    "ability": "berserk",
+    "series": "Bloodlines",
+    "description": "£{''You're my golden ticket now, kiddo.''}£ /n---/n /darkred/Berserk/. **KIDNAPPER**: When played, /red/silences a random enemy/ for 2 turns. He moves fast and takes what he can.",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "silenceRandomEnemy",
+          "value": 2
+        }
+      ],
+      "scenario": {
+        "type": "unitCount",
+        "side": "enemy",
+        "operator": "equal",
+        "threshold": 1,
+        "positive": 1,
+        "negative": 0
+      }
+    }
   },
   {
     "name": "Claire",
@@ -839,8 +1270,8 @@
     "series": "Original",
     "isKeyCard": true,
     "description": "It's a **/lightblue/Dolphin/**!"
-},
-{
+  },
+  {
     "name": "Tennis Ketcher",
     "atk": 4,
     "hp": 1,
@@ -850,8 +1281,8 @@
     "series": "Original",
     "isKeyCard": true,
     "description": "A tennis racket that can be used as a weapon."
-},
-{
+  },
+  {
     "name": "Princess Beatrice",
     "atk": 6,
     "hp": 5,
@@ -859,9 +1290,23 @@
     "rarity": "LEGENDARY",
     "ability": "none",
     "series": "Dumb Super Fantasy RPG",
-    "description": "[rainbow]_10px_MASTER OF FORBIDDEN ESSENTIA._[/rainbow] /n---/n _10px_**INVOCO**: Upon death, this card Special Summons /red/two Avalistos from other dimensions/_ {{hidden}}[[cedere]]{{/hidden}} {{hidden}}[[fermo]]{{/hidden}}"
-},
-{
+    "description": "[rainbow]_10px_MASTER OF FORBIDDEN ESSENTIA._[/rainbow] /n---/n _10px_**INVOCO**: Upon death, this card Special Summons /red/two Avalistos from other dimensions/_ {{hidden}}[[cedere]]{{/hidden}} {{hidden}}[[fermo]]{{/hidden}}",
+    "abilities": {
+      "onDeath": [
+        {
+          "type": "spawnOnBoard",
+          "cardName": "CEDERE",
+          "amount": 1
+        },
+        {
+          "type": "spawnOnBoard",
+          "cardName": "FERMO",
+          "amount": 1
+        }
+      ]
+    }
+  },
+  {
     "name": "CEDERE",
     "atk": 5,
     "hp": 3,
@@ -871,8 +1316,8 @@
     "isKeyCard": true,
     "series": "Dumb Super Fantasy RPG",
     "description": "£{''THE CORE BOWS TO ME''}£\n/n---/n\nCEDERE: When Summoned will /red/reduce the Attack of all enemies by 1./"
-},
-{
+  },
+  {
     "name": "FERMO",
     "atk": 3,
     "hp": 5,
@@ -882,8 +1327,8 @@
     "isKeyCard": true,
     "series": "Dumb Super Fantasy RPG",
     "description": "£{PARALYZE ALL WHO SHE SEES}£ /n---/n _10px_**FERMO**: When this card is attacked, the enemy is /red/stunned for the next two turns/_"
-},
-{
+  },
+  {
     "name": "Julia Aquacrucis",
     "atk": 2,
     "hp": 4,
@@ -891,9 +1336,24 @@
     "rarity": "UNCOMMON",
     "ability": "none",
     "series": "Dumb Super Fantasy RPG",
-    "description": "**GELO**: Her holy ice heals allies for /green/+4 HP/, though the freezing chill leaves them /red/unable to move for two turns/"
-},
-{
+    "description": "**GELO**: Her holy ice heals allies for /green/+4 HP/, though the freezing chill leaves them /red/unable to move for two turns/",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "healAllies",
+          "value": 4
+        },
+        {
+          "type": "giveAllAlliesEffect",
+          "effect": {
+            "type": "silenceTarget",
+            "value": 2
+          }
+        }
+      ]
+    }
+  },
+  {
     "name": "Priest Pristo",
     "atk": 3,
     "hp": 7,
@@ -901,6 +1361,164 @@
     "rarity": "EPIC",
     "ability": "none",
     "series": "Dumb Super Fantasy RPG",
-    "description": "£{''Undying priest of Dalmavilla and secretly a {shake}vampire{/shake}}£.'' /n---/n On Death: Restore #hp#/GREEN/+3 HP to self./ (only once)"
-}
+    "description": "£{''Undying priest of Dalmavilla and secretly a {shake}vampire{/shake}}£.'' /n---/n On Death: Restore #hp#/GREEN/+3 HP to self./ (only once)",
+    "abilities": {
+      "onDeath": [
+        {
+          "type": "reviveSelf",
+          "value": 3
+        }
+      ]
+    }
+  },
+  {
+    "name": "Curtis VonGravis",
+    "atk": 3,
+    "hp": 5,
+    "cost": 3,
+    "rarity": "RARE",
+    "ability": "guard",
+    "series": "Dumb Super Fantasy RPG",
+    "description": "_10px_**AHULA**: If attacked, he makes a weak point, add 50% of the enemy's HP#hp# to his ATK#atk#. If the enemy  isn't killed by Curtis next turn, /red/he is Paralyzed for 2 turns./_",
+    "abilities": {
+      "whenAttacked": [
+        {
+          "type": "attackUpSelf",
+          "value": 2
+        }
+      ]
+    }
+  },
+  {
+    "name": "Hil Kuntnovi",
+    "atk": 5,
+    "hp": 6,
+    "cost": 4,
+    "rarity": "RARE",
+    "ability": "none",
+    "series": "Dumb Super Fantasy RPG",
+    "description": "RESISTO: Only if [[Curtis Vongravis]] is on board, /gold/Hil/ gains [rainbow]Invincibility for 3 turns.[/rainbow]",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "applyInvincible",
+          "value": "3 * context.scenario"
+        }
+      ],
+      "scenario": {
+        "type": "or",
+        "cards": [
+          "Curtis VonGravis"
+        ],
+        "positive": 1,
+        "negative": 0
+      }
+    }
+  },
+  {
+    "name": "Hed",
+    "atk": 2,
+    "hp": 2,
+    "cost": 1,
+    "rarity": "COMMON",
+    "ability": "none",
+    "series": "Dumb Super Fantasy RPG",
+    "description": "Each turn, Hed /red/''borrows'' -1 HP from you/ to permanently /green/gain +1 ATK and +1 HP./#atk# #hp#",
+    "abilities": {
+      "onTurnStart": [
+        {
+          "type": "nexusHpToPowerUp",
+          "value": 1,
+          "atkGain": 1,
+          "hpGain": 1,
+          "target": "player"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Website Distract",
+    "atk": 1,
+    "hp": 3,
+    "cost": 1,
+    "rarity": "COMMON",
+    "ability": "guard",
+    "series": "New Haven",
+    "isKeyCard": true,
+    "description": "/red/_25px_Website Distract_/."
+  },
+  {
+    "name": "Pepita Pazzarella",
+    "atk": 2,
+    "hp": 3,
+    "cost": 2,
+    "rarity": "UNCOMMON",
+    "ability": "none",
+    "series": "Dumb Super Fantasy RPG",
+    "description": "**EMOZIO:** _10px_/silver/Gains +2 ATK/#atk# if she takes damage as her emotions [stretch*250]swing[/stretch]. If she doesn't attack will /green/add +1 HP to all allies/ (she's a really good cook)._",
+    "abilities": {
+      "whenAttacked": [
+        {
+          "type": "attackUpSelf",
+          "value": 2
+        }
+      ],
+      "whenNotAttack": [
+        {
+          "type": "healAllies",
+          "value": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "Rirarra",
+    "atk": 4,
+    "hp": 6,
+    "cost": 4,
+    "rarity": "EPIC",
+    "ability": "guard",
+    "series": "The Lifeguard Has Teeth!",
+    "description": "/orange/Lifeguard/ **+** _18px_🦈_ **=** **\"ME!\"**\n\\n £{/silver/\"Rhararara! Welcome to Sharrrk Cove!\"/}£\n\\n---\\n **Splash + Beserk! /red/3 damage!/** #atk#🦈",
+    "abilities": {
+      "onAttack": [
+        {
+          "type": "splashAdjacent",
+          "value": 3
+        }
+      ]
+    }
+  },
+  {
+    "name": "Rowdy",
+    "atk": 2,
+    "hp": 4,
+    "cost": 2,
+    "rarity": "RARE",
+    "ability": "haste",
+    "series": "The Lifeguard Has Teeth!",
+    "description": "/orange/Lifeguard/ **+** _18px_🦈_ **= £{\"Also me!\"}£** \\n---\\n Will Spawn [[Watermelon]]! If there's any other /orange/Shark Lifeguards/ will spawn another!",
+    "abilities": {
+      "onPlay": [
+        {
+          "type": "spawnOnBoard",
+          "cardName": "Watermelon",
+          "amount": 1,
+          "value": "1 + context.scenario",
+          "scenario": {
+            "type": "or",
+            "cards": [
+              "Rirarra",
+              "Melanika",
+              "Rinco",
+              "Daphne Mokarran",
+              "Brizz"
+            ],
+            "positive": 1,
+            "negative": 0
+          }
+        }
+      ]
+    }
+  }
 ]
