@@ -143,6 +143,38 @@ body::after {
 }
 .search-input::placeholder { color: var(--muted); }
 
+.suggestion-container {
+  position: relative;
+  width: 100%;
+}
+.custom-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 12px 30px rgba(0,0,0,.25);
+  display: none;
+}
+.suggestion-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  transition: background .18s;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:hover {
+  background: rgba(99,102,241,.15);
+}
+
 /* Rarity filter */
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .filter-pill {
@@ -836,6 +868,8 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; appear
   </div>
 </div>
 
+<datalist id="cardNames"></datalist>
+
 <script>
 /* ── Supabase config ── */
 const SUPABASE_URL        = 'https://djknvuaivmtudiecwztx.supabase.co';
@@ -886,6 +920,7 @@ const EFFECTS = [
   {type:'healNexus',            name:'Heal Nexus',               desc:'Restores Nexus HP.'},
   {type:'healSelf',             name:'Heal Self',                desc:'Heals itself.'},
   {type:'dealDamageAllEnemies', name:'Damage All Enemies',       desc:'Damages every enemy unit.'},
+  {type:'damageRandomEnemy',    name:'Damage Random Enemy',      desc:'Deals damage to a random enemy unit.'},
   {type:'attackUpSelf',         name:'+ATK to Self',             desc:'Raises ATK permanently.'},
   {type:'hpUpSelf',             name:'+HP to Self',              desc:'Raises max HP permanently.'},
   {type:'snipeDamage',          name:'Snipe Damage',             desc:'Deals damage to a target.'},
@@ -984,6 +1019,7 @@ async function loadCards() {
 
   try {
     allCards = await fetchCards();
+    updateDatalist();
     document.getElementById('stateLoading').style.display = 'none';
     applyFilters();
   } catch(e) {
@@ -993,7 +1029,9 @@ async function loadCards() {
   }
 }
 
-function applyFilters() {
+function updateDatalist() {
+  const datalist = document.getElementById('cardNames');
+  datalist.innerHTML = allCards.map(c => '<option value="' + c.name.replace(/"/g, '&quot;') + '">').join('');
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   filtered = allCards.filter(c => {
     const matchRarity = activeRarity === 'ALL' || c.rarity === activeRarity;
@@ -1012,6 +1050,105 @@ function applyFilters() {
 
   document.getElementById('stateEmpty').style.display = 'none';
   renderGrid(filtered);
+}
+
+function applyFilters() {
+  updateDatalist();
+}
+
+function setupAutocomplete(inputId, dropdownId, key, onSelect) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
+
+  const showMatches = () => {
+    const val = input.value.toLowerCase();
+    dropdown.innerHTML = '';
+
+    const suggestions = [...new Set(allCards.map(c => c[key]))]
+      .filter(item => item && item.toLowerCase().includes(val))
+      .sort();
+
+    if (suggestions.length > 0 && val.length > 0) {
+      suggestions.forEach(text => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.textContent = text;
+        div.onclick = (e) => {
+          e.stopPropagation();
+          input.value = text;
+          dropdown.style.display = 'none';
+          if (typeof onSelect === 'function') onSelect();
+        };
+        dropdown.appendChild(div);
+      });
+      dropdown.style.display = 'block';
+    } else {
+      dropdown.style.display = 'none';
+    }
+  };
+
+  input.addEventListener('input', () => {
+    dropdown.style.display = 'none';
+    showMatches();
+  });
+  input.addEventListener('focus', showMatches);
+
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function setupAutocompleteArray(inputId, dropdownId, items) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
+
+  const normalizedItems = items.map(item => typeof item === 'string' ? {label: item, value: item} : item);
+
+  const showMatches = () => {
+    const val = input.value.toLowerCase();
+    dropdown.innerHTML = '';
+
+    const suggestions = normalizedItems.filter(item => item.label.toLowerCase().includes(val));
+    if (suggestions.length > 0 && val.length > 0) {
+      suggestions.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.textContent = item.label;
+        div.onclick = (e) => {
+          e.stopPropagation();
+          input.value = item.label;
+          input.dataset.value = item.value;
+          dropdown.style.display = 'none';
+          if (typeof onSelect === 'function') onSelect();
+        };
+        dropdown.appendChild(div);
+      });
+      dropdown.style.display = 'block';
+    } else {
+      dropdown.style.display = 'none';
+    }
+  };
+
+  input.addEventListener('input', () => {
+    delete input.dataset.value;
+    showMatches();
+  });
+  input.addEventListener('focus', showMatches);
+
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function getEffectLabel(typeOrName) {
+  const effect = EFFECTS.find(e => e.type === typeOrName || e.name === typeOrName);
+  return effect ? effect.name : typeOrName;
 }
 
 function setRarityFilter(el) {
@@ -1226,7 +1363,7 @@ async function flushImage() {
 function makeDefaultAbility() {
   return {
     trigger:'onPlay', effectType:'healAllies', effectValue:'',
-    effectSeries:'', effectCardName:'',
+    effectSeries:'', effectCardName:'', effectDuration:'', effectSubType:'healAllies',
     atkGain:1, hpGain:1, nexusSide:'player',
     hasCond:false, condType:'or',
     ucSide:'enemy', ucOp:'less', ucThreshold:3,
@@ -1311,17 +1448,28 @@ function renderESlots() {
         '</div>' +
 
         '<div class="row2">' +
-          '<div class="field"><div class="lbl">Value / Amount</div>' +
-            '<input type="text" id="es-val-' + i + '" value="' + (ab.effectValue||'') + '" placeholder="e.g. 2" oninput="esSync(' + i + ')">' +
-          '</div>' +
-          '<div class="field" id="esSeries-' + i + '" style="display:' + (ef.needsSeries?'block':'none') + '">' +
-            '<div class="lbl">Target Series</div>' +
-            '<input type="text" id="es-series-' + i + '" value="' + (ab.effectSeries||'') + '" placeholder="e.g. New Haven" oninput="esSync(' + i + ')">' +
-          '</div>' +
-          '<div class="field" id="esCard-' + i + '" style="display:' + (ef.needsCard?'block':'none') + '">' +
-            '<div class="lbl">Card to Spawn</div>' +
-            '<input type="text" id="es-card-' + i + '" value="' + (ab.effectCardName||'') + '" placeholder="Exact card name" oninput="esSync(' + i + ')">' +
-          '</div>' +
+          (ef.type === 'giveAllAlliesEffect' || ef.type === 'giveAllEnemiesEffect' ?
+            '<div class="field"><div class="lbl">Duration (turns)</div>' +
+              '<input type="text" id="es-duration-' + i + '" value="' + (ab.effectDuration||'') + '" placeholder="e.g. 2" oninput="esSync(' + i + ')">' +
+            '</div>' +
+            '<div class="field"><div class="lbl">Effect to Apply</div>' +
+              '<select id="es-subtype-' + i + '" onchange="esSync(' + i + ')">' +
+                EFFECTS.map(e => '<option value="' + e.type + '"' + (ab.effectSubType === e.type ? ' selected' : '') + '>' + e.name + '</option>').join('') +
+              '</select>' +
+            '</div>'
+          :
+            '<div class="field"><div class="lbl">Value / Amount</div>' +
+              '<input type="text" id="es-val-' + i + '" value="' + (ab.effectValue||'') + '" placeholder="e.g. 2" oninput="esSync(' + i + ')">' +
+            '</div>' +
+            '<div class="field" id="esSeries-' + i + '" style="display:' + (ef.needsSeries?'block':'none') + '">' +
+              '<div class="lbl">Target Series</div>' +
+              '<input type="text" id="es-series-' + i + '" value="' + (ab.effectSeries||'') + '" placeholder="e.g. New Haven" oninput="esSync(' + i + ')">' +
+            '</div>' +
+            '<div class="field" id="esCard-' + i + '" style="display:' + (ef.needsCard?'block':'none') + '">' +
+              '<div class="lbl">Card to Spawn</div>' +
+              '<input type="text" id="es-card-' + i + '" value="' + (ab.effectCardName||'') + '" placeholder="Exact card name" oninput="esSync(' + i + ')">' +
+            '</div>'
+          ) +
         '</div>' +
 
         '<div id="esNexus-' + i + '" style="display:' + (ef.needsNexus?'block':'none') + '">' +
@@ -1358,7 +1506,7 @@ function renderESlots() {
           '<div id="esCondCards-' + i + '" style="display:' + (ab.condType!=='unitCount'?'block':'none') + '">' +
             '<div class="field" style="margin-bottom:6px"><div class="lbl">Cards on board</div>' +
               '<div class="card-add-row">' +
-                '<input type="text" id="es-sc-' + i + '" placeholder="Card name…">' +
+                '<input type="text" id="es-sc-' + i + '" placeholder="Card name…" list="cardNames">' +
                 '<button class="btn-sm" onclick="esAddCard(' + i + ')">+ Add</button>' +
               '</div>' +
             '</div>' +
@@ -1450,6 +1598,8 @@ function esSync(i) {
   var ab=eAbilities[i];
   if(!ab) return;
   ab.effectValue=(document.getElementById('es-val-'+i)||{value:''}).value||'';
+  ab.effectDuration=(document.getElementById('es-duration-'+i)||{value:''}).value||'';
+  ab.effectSubType=(document.getElementById('es-subtype-'+i)||{value:'healAllies'}).value||'healAllies';
   ab.effectSeries=(document.getElementById('es-series-'+i)||{value:''}).value||'';
   ab.effectCardName=(document.getElementById('es-card-'+i)||{value:''}).value||'';
   ab.atkGain=parseInt((document.getElementById('es-atk-'+i)||{value:'1'}).value)||1;
@@ -1488,7 +1638,10 @@ function buildEffect(ab) {
   if(info.needsSeries) ef.series=ab.effectSeries;
   if(info.needsCard){ef.cardName=ab.effectCardName;ef.amount=1;}
   if(info.needsNexus){ef.atkGain=ab.atkGain;ef.hpGain=ab.hpGain;ef.target=ab.nexusSide;}
-  if(ab.effectValue!==''){var n=Number(ab.effectValue);ef.value=isNaN(n)?ab.effectValue:n;}
+  if(ab.effectType === 'giveAllAlliesEffect' || ab.effectType === 'giveAllEnemiesEffect'){
+    ef.value = Number(ab.effectDuration) || 1;
+    ef.effect = {type: ab.effectSubType, value: 1};
+  } else if(ab.effectValue!==''){var n=Number(ab.effectValue);ef.value=isNaN(n)?ab.effectValue:n;}
   if(ab.hasCond){
     var sc={type:ab.condType};
     if(ab.condType==='unitCount'){

@@ -692,6 +692,8 @@ input::-webkit-calendar-picker-indicator {
 </div><!-- /main-area -->
 </div><!-- /wizard -->
 
+<datalist id="cardNames"></datalist>
+
 <script>
 
 // ── Supabase config ───────────────────────────────────────────────────────
@@ -807,6 +809,7 @@ async function refreshSuggestions() {
     try {
         // Load cards from Supabase (falls back to empty array if not uploaded yet)
         existingCards = await fetchCardsFromSupabase();
+        updateDatalist();
         
         // Link the 3 input fields to their respective dropdowns
         setupAutocomplete('f-series', 'seriesDropdown', 'series');
@@ -815,7 +818,7 @@ async function refreshSuggestions() {
     }
 }
 
-function setupAutocomplete(inputId, dropdownId, key) {
+function setupAutocomplete(inputId, dropdownId, key, onSelect) {
     const input = document.getElementById(inputId);
     const dropdown = document.getElementById(dropdownId);
     if (!input || !dropdown) return;
@@ -838,7 +841,8 @@ function setupAutocomplete(inputId, dropdownId, key) {
                     e.stopPropagation();
                     input.value = text;
                     dropdown.style.display = 'none';
-                    sync(); // Trigger the preview update
+                    if (typeof onSelect === 'function') onSelect(input, text);
+                    else sync(); // Trigger the preview update
                 };
                 dropdown.appendChild(div);
             });
@@ -859,6 +863,61 @@ function setupAutocomplete(inputId, dropdownId, key) {
     });
 }
 
+function setupAutocompleteArray(inputId, dropdownId, items) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+    if (!input || !dropdown) return;
+
+    const normalizedItems = items.map(item => typeof item === 'string' ? {label: item, value: item} : item);
+
+    const showMatches = () => {
+        const val = input.value.toLowerCase();
+        dropdown.innerHTML = '';
+
+        const suggestions = normalizedItems.filter(item => item.label.toLowerCase().includes(val));
+        if (suggestions.length > 0 && val.length > 0) {
+            suggestions.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.textContent = item.label;
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    input.value = item.label;
+                    input.dataset.value = item.value;
+                    dropdown.style.display = 'none';
+                    slotSync(parseInt(input.dataset.slotIndex, 10));
+                };
+                dropdown.appendChild(div);
+            });
+            dropdown.style.display = 'block';
+        } else {
+            dropdown.style.display = 'none';
+        }
+    };
+
+    input.addEventListener('input', () => {
+        delete input.dataset.value;
+        showMatches();
+    });
+    input.addEventListener('focus', showMatches);
+
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+function getEffectLabel(typeOrName) {
+    const effect = EFFECTS.find(e => e.type === typeOrName || e.name === typeOrName);
+    return effect ? effect.name : typeOrName;
+}
+
+function updateDatalist() {
+  const datalist = document.getElementById('cardNames');
+  datalist.innerHTML = existingCards.map(c => '<option value="' + c.name.replace(/"/g, '&quot;') + '">').join('');
+}
+
 // Initialize on load
 window.addEventListener('DOMContentLoaded', refreshSuggestions);
 
@@ -868,6 +927,7 @@ const EFFECTS=[
   {type:'healNexus',           name:'Heal Nexus',               desc:'Restores the value to your Nexus (player HP).'},
   {type:'healSelf',            name:'Heal Self',                desc:'This card heals itself up to its max HP by the value.'},
   {type:'dealDamageAllEnemies',name:'Damage All Enemies',       desc:'Deals the value as damage to every enemy unit on the board.'},
+  {type:'damageRandomEnemy',   name:'Damage Random Enemy',      desc:'Deals the value as damage to a random enemy unit on the board.'},
   {type:'attackUpSelf',        name:'+ATK to Self',             desc:'Permanently raises this card\'s Attack by the value.'},
   {type:'hpUpSelf',            name:'+HP to Self',              desc:'Permanently raises this card\'s max and current HP by the value.'},
   {type:'snipeDamage',         name:'Snipe Damage',             desc:'Deals the value directly to the targeted enemy unit.'},
@@ -898,7 +958,7 @@ const RARITY_SLOTS={COMMON:1,UNCOMMON:1,RARE:2,EPIC:3,LEGENDARY:4};
 function makeDefaultAbility(){
   return {
     trigger:'onPlay',effectType:'healAllies',effectValue:'',
-    effectSeries:'',effectCardName:'',
+    effectSeries:'',effectCardName:'',effectDuration:'',effectSubType:'healAllies',
     atkGain:1,hpGain:1,nexusSide:'player',
     hasCond:false,condType:'or',
     ucSide:'enemy',ucOp:'less',ucThreshold:3,
@@ -906,8 +966,6 @@ function makeDefaultAbility(){
     open:true,
   };
 }
-
-/* ”€ State ”€ */
 
 function makeDefaultAbility(){
   return {
@@ -1026,19 +1084,32 @@ function renderAllSlots(){
         '</div>'+
 
         '<div class="row2">'+
-          '<div class="field">'+
-            '<div class="lbl">Value / Amount</div>'+
-            '<input type="text" id="ae-value-'+i+'" value="'+(ab.effectValue||'')+'" placeholder="e.g. 2  or  3 * context.scenario" oninput="slotSync('+i+')">'+
-          '</div>'+
-          '<div class="field" id="fSeries-'+i+'" style="display:'+(ef.needsSeries?'block':'none')+'">'+
-            '<div class="lbl">Target Series</div>'+
-            '<input type="text" id="ae-series-'+i+'" value="'+(ab.effectSeries||'')+'" placeholder="e.g. New Haven" oninput="slotSync('+i+')">'+
-          '</div>'+
-          '<div class="field" id="fCard-'+i+'" style="display:'+(ef.needsCard?'block':'none')+'">'+
-            '<div class="lbl">Card to Spawn</div>'+
-            '<input type="text" id="ae-cardname-'+i+'" value="'+(ab.effectCardName||'')+'" placeholder="Exact card name" oninput="slotSync('+i+')">'+
-          '</div>'+
-        '</div>'+
+          (ef.type === 'giveAllAlliesEffect' || ef.type === 'giveAllEnemiesEffect' ?
+            '<div class="field">'+
+              '<div class="lbl">Duration (turns)</div>'+
+              '<input type="text" id="ae-duration-'+i+'" value="'+(ab.effectDuration||'')+'" placeholder="e.g. 2" oninput="slotSync('+i+')">'+
+            '</div>'+
+            '<div class="field suggestion-container">'+
+              '<div class="lbl">Effect to Apply</div>'+ 
+              '<input type="text" id="ae-subtype-'+i+'" data-slot-index="'+i+'" data-value="'+(ab.effectSubType||'healAllies')+'" value="'+getEffectLabel(ab.effectSubType||'healAllies')+'" placeholder="Select sub-effect" autocomplete="off">'+
+              '<div id="ae-subtype-dropdown-'+i+'" class="custom-dropdown"></div>'+
+            '</div>'
+          :
+            '<div class="field">'+
+              '<div class="lbl">Value / Amount</div>'+
+              '<input type="text" id="ae-value-'+i+'" value="'+(ab.effectValue||'')+'" placeholder="e.g. 2  or  3 * context.scenario" oninput="slotSync('+i+')">'+
+            '</div>'+
+'<div class="field suggestion-container" id="fSeries-'+i+'" style="display:'+(ef.needsSeries?'block':'none')+'">'+
+              '<div class="lbl">Target Series</div>'+ 
+              '<input type="text" id="ae-series-'+i+'" value="'+(ab.effectSeries||'')+'" placeholder="e.g. New Haven" autocomplete="off">'+
+              '<div id="ae-series-dropdown-'+i+'" class="custom-dropdown"></div>'+ 
+            '</div>'+ 
+            '<div class="field suggestion-container" id="fCard-'+i+'" style="display:'+(ef.needsCard?'block':'none')+'">'+
+              '<div class="lbl">Card to Spawn</div>'+ 
+              '<input type="text" id="ae-cardname-'+i+'" value="'+(ab.effectCardName||'')+'" placeholder="Exact card name" autocomplete="off">'+
+              '<div id="ae-cardname-dropdown-'+i+'" class="custom-dropdown"></div>'+ 
+            '</div>'
+          )+
 
         '<div id="fNexus-'+i+'" style="display:'+(ef.needsNexus?'block':'none')+'">'+
           '<div class="row3">'+
@@ -1079,8 +1150,9 @@ function renderAllSlots(){
           '<div id="condCards-'+i+'" style="display:'+(ab.condType!=='unitCount'?'block':'none')+'">'+
             '<div class="field" style="margin-bottom:8px">'+
               '<div class="lbl">Cards that must be on the board</div>'+
-              '<div class="card-add-row">'+
-                '<input type="text" id="sc-input-'+i+'" placeholder="Type a card name...">'+
+              '<div class="card-add-row suggestion-container">'+
+                '<input type="text" id="sc-input-'+i+'" placeholder="Type a card name..." autocomplete="off">'+
+                '<div id="sc-input-dropdown-'+i+'" class="custom-dropdown"></div>'+
                 '<button class="btn-sm" onclick="slotAddCard('+i+')">+ Add</button>'+
               '</div>'+
             '</div>'+
@@ -1115,6 +1187,20 @@ function renderAllSlots(){
       '</div>';
 
     container.appendChild(slot);
+    if (ef.type === 'giveAllAlliesEffect' || ef.type === 'giveAllEnemiesEffect') {
+      setupAutocompleteArray('ae-subtype-'+i, 'ae-subtype-dropdown-'+i, EFFECTS.map(function(e){ return {label: e.name, value: e.type}; }));
+    }
+    if (ef.needsSeries) {
+      setupAutocomplete('ae-series-'+i, 'ae-series-dropdown-'+i, 'series', function(){
+        slotSync(i);
+      });
+    }
+    if (ef.needsCard) {
+      setupAutocomplete('ae-cardname-'+i, 'ae-cardname-dropdown-'+i, 'name', function(){
+        slotSync(i);
+      });
+    }
+    setupAutocomplete('sc-input-'+i, 'sc-input-dropdown-'+i, 'name');
     var scInp=document.getElementById('sc-input-'+i);
     if(scInp) scInp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();slotAddCard(i);}});
   });
@@ -1132,10 +1218,7 @@ function slotPickEffect(i,el){
   document.querySelectorAll('#effectGrid-'+i+' .eff-card').forEach(function(c){c.classList.remove('sel');});
   el.classList.add('sel');
   S.abilities[i].effectType=el.dataset.et;
-  var ef=EFFECTS.find(function(e){return e.type===el.dataset.et;})||{};
-  document.getElementById('fSeries-'+i).style.display=ef.needsSeries?'block':'none';
-  document.getElementById('fCard-'+i).style.display=ef.needsCard?'block':'none';
-  document.getElementById('fNexus-'+i).style.display=ef.needsNexus?'block':'none';
+  renderAllSlots();
   refreshSlotHeader(i);
   updateCard();
 }
@@ -1182,6 +1265,9 @@ function slotSync(i){
   var ab=S.abilities[i];
   if(!ab) return;
   ab.effectValue=(document.getElementById('ae-value-'+i)||{value:''}).value||'';
+  ab.effectDuration=(document.getElementById('ae-duration-'+i)||{value:''}).value||'';
+  var subtypeInput=document.getElementById('ae-subtype-'+i)||{value:'healAllies'};
+  ab.effectSubType=subtypeInput.dataset.value||subtypeInput.value||'healAllies';
   ab.effectSeries=(document.getElementById('ae-series-'+i)||{value:''}).value||'';
   ab.effectCardName=(document.getElementById('ae-cardname-'+i)||{value:''}).value||'';
   ab.atkGain=parseInt((document.getElementById('ae-atk-'+i)||{value:'1'}).value)||1;
@@ -1351,7 +1437,10 @@ function buildAbilityEffect(ab){
   if(info.needsSeries) ef.series=ab.effectSeries;
   if(info.needsCard){ef.cardName=ab.effectCardName;ef.amount=1;}
   if(info.needsNexus){ef.atkGain=ab.atkGain;ef.hpGain=ab.hpGain;ef.target=ab.nexusSide;}
-  if(ab.effectValue!==''){var n=Number(ab.effectValue);ef.value=isNaN(n)?ab.effectValue:n;}
+  if(ab.effectType === 'giveAllAlliesEffect' || ab.effectType === 'giveAllEnemiesEffect'){
+    ef.value = Number(ab.effectDuration) || 1;
+    ef.effect = {type: ab.effectSubType, value: 1};
+  } else if(ab.effectValue!==''){var n=Number(ab.effectValue);ef.value=isNaN(n)?ab.effectValue:n;}
   if(ab.hasCond){
     var sc={type:ab.condType};
     if(ab.condType==='unitCount'){
