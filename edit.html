@@ -975,6 +975,8 @@ const EFFECTS=[
   {type:'drainHealthFromAll',  name:'Drain Health from All',  desc:'Steals HP from all enemies, heals self.', needsValue:true},
   {type:'giveSpecificAllyEffect', name:'Give Specific Ally Effect', desc:'Applies a nested sub-effect to a specific ally.', needsValue:true, needsEffect:true, needsCard:true},
   {type:'triggerDialogue',     name:'Trigger Dialogue',       desc:'Asks for: a free-text Dialogue Text input.', needsDialog:true},
+  {type:'randomSummon',        name:'Random Summon',           desc:'Summons a random card from a user-defined list of cards.', needsCardList:true},
+  {type:'damageEnemyNexus',    name:'Damage Enemy Nexus',      desc:'Deals the value as damage to the enemy Nexus.', needsValue:true},
 ];
 
 const TRIGGERS=[
@@ -1490,6 +1492,19 @@ function renderESlots() {
           '<div class="lbl">Card to Target</div>' +
           '<input type="text" id="es-card-' + i + '" value="' + (ab.effectCardName||'') + '" placeholder="Exact card name" oninput="esSync(' + i + ')">' +
         '</div>' +
+        '<div class="field" id="esCardList-' + i + '" style="display:' + (ef.needsCardList?'block':'none') + '">' +
+          '<div class="lbl">Cards to Summon From</div>' +
+          '<div class="card-add-row suggestion-container">' +
+            '<input type="text" id="eec-input-' + i + '" placeholder="Type a card name..." autocomplete="off">' +
+            '<div id="eec-input-dropdown-' + i + '" class="custom-dropdown"></div>' +
+            '<button class="btn-sm" onclick="esAddEffectCard(' + i + ')">+ Add</button>' +
+          '</div>' +
+          '<div class="tag-row" id="eecTags-' + i + '">' +
+            ((ab.effectCardList||[]).map(function(n){' +
+              'return \'<div class="tag">\'+n+\'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+n.replace(/\'/g,"\\\\'")+'\')">&#8212;</span></div>\';' +
+            '}).join('')||'') +
+          '</div>' +
+        '</div>' +
 
         '<div class="field" id="esSeries-' + i + '" style="display:' + (ef.needsSeries?'block':'none') + '">' +
           '<div class="lbl">Target Series</div>' +
@@ -1597,6 +1612,14 @@ function renderESlots() {
     if (scInp) scInp.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { e.preventDefault(); esAddCard(i); }
     });
+
+    if (ef.needsCardList) {
+      setupAutocomplete('eec-input-' + i, 'eec-input-dropdown-' + i, 'name');
+      var eecInp = document.getElementById('eec-input-' + i);
+      if (eecInp) eecInp.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); esAddEffectCard(i); }
+      });
+    }
   });
 }
 
@@ -1610,8 +1633,9 @@ function esPickEff(i,el) {
   document.querySelectorAll('#esEff-'+i+' .eff-card').forEach(function(c){c.classList.remove('sel');});
   el.classList.add('sel'); eAbilities[i].effectType=el.dataset.et;
   var ef=EFFECTS.find(function(e){return e.type===el.dataset.et;})||{};
-  document.getElementById('esCard-'+i).style.display=ef.needsCard?'block':'none';
-  document.getElementById('esEffect-'+i).style.display=ef.needsEffect?'block':'none';
+   document.getElementById('esCard-'+i).style.display=ef.needsCard?'block':'none';
+   document.getElementById('esCardList-'+i).style.display=ef.needsCardList?'block':'none';
+   document.getElementById('esEffect-'+i).style.display=ef.needsEffect?'block':'none';
   document.getElementById('esStats-'+i).style.display=ef.needsStats?'block':'none';
   document.getElementById('esATKHP-'+i).style.display=(ef.needsATK || ef.needsHP)?'grid':'none';
   document.getElementById('esSeries-'+i).style.display=ef.needsSeries?'block':'none';
@@ -1656,8 +1680,8 @@ function esSync(i) {
   ab.effectDuration=(document.getElementById('es-duration-'+i)||{value:''}).value||'';
   ab.effectSubType=(document.getElementById('es-subtype-'+i)||{value:'healAllies'}).value||'healAllies';
   ab.effectSeries=(document.getElementById('es-series-'+i)||{value:''}).value||'';
-  ab.effectCardName=(document.getElementById('es-card-'+i)||{value:''}).value||'';
-  ab.effectSubEffect=(document.getElementById('es-subEffect-'+i)||{value:''}).value||'';
+   ab.effectCardName=(document.getElementById('es-card-'+i)||{value:''}).value||'';
+   ab.effectSubEffect=(document.getElementById('es-subEffect-'+i)||{value:''}).value||'';
   ab.effectDialog=(document.getElementById('es-dialog-'+i)||{value:''}).value||'';
   ab.atkBoost=parseInt((document.getElementById('es-atkBoost-'+i)||{value:'0'}).value)||0;
   ab.hpBoost=parseInt((document.getElementById('es-hpBoost-'+i)||{value:'0'}).value)||0;
@@ -1682,6 +1706,25 @@ function esRemCard(i,name) {
   var tags=document.getElementById('es-tags-'+i);
   if(tags) tags.innerHTML=eAbilities[i].condCards.map(function(n){
     return '<div class="tag">'+n+'<span class="tag-x" onclick="esRemCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">—</span></div>';
+  }).join('');
+}
+function esAddEffectCard(i) {
+  var inp=document.getElementById('eec-input-'+i); if(!inp) return;
+  var name=inp.value.trim();
+  if(!eAbilities[i].effectCardList) eAbilities[i].effectCardList = [];
+  if(!name||eAbilities[i].effectCardList.includes(name)){inp.value='';return;}
+  eAbilities[i].effectCardList.push(name); inp.value='';
+  var tags=document.getElementById('eecTags-'+i);
+  if(tags) tags.innerHTML=eAbilities[i].effectCardList.map(function(n){
+    return '<div class="tag">'+n+'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">—</span></div>';
+  }).join('');
+}
+function esRemoveEffectCard(i,name) {
+  if(!eAbilities[i].effectCardList) return;
+  eAbilities[i].effectCardList=eAbilities[i].effectCardList.filter(function(n){return n!==name;});
+  var tags=document.getElementById('eecTags-'+i);
+  if(tags) tags.innerHTML=eAbilities[i].effectCardList.map(function(n){
+    return '<div class="tag">'+n+'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">—</span></div>';
   }).join('');
 }
 function refreshEsHeader(i) {

@@ -709,6 +709,20 @@ input::-webkit-calendar-picker-indicator {
 </datalist>
 
 <script>
+let currentStep = 0;
+function goTo(n) {
+  document.getElementById('step-' + currentStep).classList.remove('active');
+  document.getElementById('pill-' + currentStep).classList.remove('active');
+  if (n > currentStep) document.getElementById('pill-' + currentStep).classList.add('done');
+  else document.getElementById('pill-' + currentStep).classList.remove('done');
+  currentStep = n;
+  document.getElementById('step-' + n).classList.add('active');
+  document.getElementById('pill-' + n).classList.add('active');
+  if (n === 4) renderJSON();
+}
+</script>
+
+<script>
 
 // ── Supabase config ───────────────────────────────────────────────────────
 const SUPABASE_URL    = 'https://djknvuaivmtudiecwztx.supabase.co';
@@ -997,6 +1011,8 @@ const EFFECTS=[
   {type:'drainHealthFromAll',  name:'Drain Health from All',  desc:'Steals HP from all enemies, heals self.', needsValue:true},
   {type:'giveSpecificAllyEffect', name:'Give Specific Ally Effect', desc:'Applies a nested sub-effect to a specific ally.', needsValue:true, needsEffect:true, needsCard:true},
   {type:'triggerDialogue',     name:'Trigger Dialogue',       desc:'Asks for: a free-text Dialogue Text input.', needsDialog:true},
+  {type:'randomSummon',        name:'Random Summon',           desc:'Summons a random card from a user-defined list of cards.', needsCardList:true},
+  {type:'damageEnemyNexus',    name:'Damage Enemy Nexus',      desc:'Deals the value as damage to the enemy Nexus.', needsValue:true},
 ];
 
 const RCOLS={COMMON:'#64748b',UNCOMMON:'#10b981',RARE:'#3b82f6',EPIC:'#a855f7',LEGENDARY:'#f59e0b'};
@@ -1024,7 +1040,7 @@ function makeDefaultState(){
 }
 const S=makeDefaultState();
 let batchCards=[];
-let currentStep=0;
+
 
 /* Slot UI helpers */
 function maxAbilitySlots(){ return RARITY_SLOTS[S.rarity]||1; }
@@ -1140,9 +1156,22 @@ function renderAllSlots(){
               '<div id="ae-series-dropdown-'+i+'" class="custom-dropdown"></div>'+ 
             '</div>'+ 
             '<div class="field suggestion-container" id="fCard-'+i+'" style="display:'+(ef.needsCard?'block':'none')+'">'+
-              '<div class="lbl">Card to Spawn</div>'+ 
+              '<div class="lbl">Card to Spawn</div>'+
               '<input type="text" id="ae-cardname-'+i+'" value="'+(ab.effectCardName||'')+'" placeholder="Exact card name" autocomplete="off">'+
-              '<div id="ae-cardname-dropdown-'+i+'" class="custom-dropdown"></div>'+ 
+              '<div id="ae-cardname-dropdown-'+i+'" class="custom-dropdown"></div>'+
+            '</div>'+
+            '<div class="field" id="fCardList-'+i+'" style="display:'+(ef.needsCardList?'block':'none')+'">'+
+              '<div class="lbl">Cards to Summon From</div>'+
+              '<div class="card-add-row suggestion-container">'+
+                '<input type="text" id="ec-input-'+i+'" placeholder="Type a card name..." autocomplete="off">'+
+                '<div id="ec-input-dropdown-'+i+'" class="custom-dropdown"></div>'+
+                '<button class="btn-sm" onclick="slotAddEffectCard('+i+')">+ Add</button>'+
+              '</div>'+
+              '<div class="tag-row" id="ecTags-'+i+'">'+
+                ((ab.effectCardList||[]).map(function(n){
+                  return '<div class="tag">'+n+'<span class="tag-x" onclick="slotRemoveEffectCard('+i+',\''+n.replace(/\'/g,"\\\\'")+'\')">&#8212;</span></div>';
+                }).join('')||'')
+              +'</div>'+
             '</div>'
           )+
 
@@ -1258,6 +1287,11 @@ function renderAllSlots(){
         slotSync(i);
       });
     }
+    if (ef.needsCardList) {
+      setupAutocomplete('ec-input-'+i, 'ec-input-dropdown-'+i, 'name');
+      var ecInp=document.getElementById('ec-input-'+i);
+      if(ecInp) ecInp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();slotAddEffectCard(i);}});
+    }
     if (ef.needsEffect && ab.effectType !== 'giveSpecificCardBenefits') {
       setupAutocompleteArray('ae-subEffect-'+i, 'ae-subEffect-dropdown-'+i, EFFECTS.map(function(e){ return {label: e.name, value: e.type}; }));
     }
@@ -1330,8 +1364,9 @@ function slotSync(i){
   var subtypeInput=document.getElementById('ae-subtype-'+i)||{value:'healAllies'};
   ab.effectSubType=subtypeInput.dataset.value||subtypeInput.value||'healAllies';
   ab.effectSeries=(document.getElementById('ae-series-'+i)||{value:''}).value||'';
-  ab.effectCardName=(document.getElementById('ae-cardname-'+i)||{value:''}).value||'';
-  ab.effectSubEffect=(document.getElementById('ae-subEffect-'+i)||{value:''}).value||'';
+   ab.effectCardName=(document.getElementById('ae-cardname-'+i)||{value:''}).value||'';
+
+   ab.effectSubEffect=(document.getElementById('ae-subEffect-'+i)||{value:''}).value||'';
   ab.effectDialog=(document.getElementById('ae-dialog-'+i)||{value:''}).value||'';
   ab.atkBoost=parseInt((document.getElementById('ae-atkBoost-'+i)||{value:'0'}).value)||0;
   ab.hpBoost=parseInt((document.getElementById('ae-hpBoost-'+i)||{value:'0'}).value)||0;
@@ -1362,6 +1397,28 @@ function slotRemoveCard(i,name){
   }).join('');
   updateCard();
 }
+function slotAddEffectCard(i){
+  var inp=document.getElementById('ec-input-'+i);
+  if(!inp) return;
+  var name=inp.value.trim();
+  if(!S.abilities[i].effectCardList) S.abilities[i].effectCardList = [];
+  if(!name||S.abilities[i].effectCardList.includes(name)){inp.value='';return;}
+  S.abilities[i].effectCardList.push(name);inp.value='';
+  var tagsEl=document.getElementById('ecTags-'+i);
+  if(tagsEl) tagsEl.innerHTML=S.abilities[i].effectCardList.map(function(n){
+    return '<div class="tag">'+n+'<span class="tag-x" onclick="slotRemoveEffectCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">&#8212;</span></div>';
+  }).join('');
+  updateCard();
+}
+function slotRemoveEffectCard(i,name){
+  if(!S.abilities[i].effectCardList) return;
+  S.abilities[i].effectCardList=S.abilities[i].effectCardList.filter(function(n){return n!==name;});
+  var tagsEl=document.getElementById('ecTags-'+i);
+  if(tagsEl) tagsEl.innerHTML=S.abilities[i].effectCardList.map(function(n){
+    return '<div class="tag">'+n+'<span class="tag-x" onclick="slotRemoveEffectCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">&#8212;</span></div>';
+  }).join('');
+  updateCard();
+}
 function refreshSlotHeader(i){
   var ab=S.abilities[i];
   if(!ab) return;
@@ -1372,17 +1429,7 @@ function refreshSlotHeader(i){
   badge.textContent=trigLabel+' \u2192 '+effLabel;
 }
 
-/* Navigation */
-function goTo(n){
-  document.getElementById('step-'+currentStep).classList.remove('active');
-  document.getElementById('pill-'+currentStep).classList.remove('active');
-  if(n>currentStep) document.getElementById('pill-'+currentStep).classList.add('done');
-  else              document.getElementById('pill-'+currentStep).classList.remove('done');
-  currentStep=n;
-  document.getElementById('step-'+n).classList.add('active');
-  document.getElementById('pill-'+n).classList.add('active');
-  if(n===4) renderJSON();
-}
+
 
 /* Generic pill picker (rarity / keyword ability only) */
 function pick(el,key,gid){
