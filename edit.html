@@ -471,6 +471,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; appear
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.row4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
 
 /* Pill selectors */
 .pill-grid { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -870,6 +871,19 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; appear
 
 <datalist id="cardNames"></datalist>
 
+<datalist id="statusTypes">
+  <option value="exhausted">
+  <option value="justPlayed">
+  <option value="silenced">
+  <option value="shield">
+  <option value="invincible">
+  <option value="invisible">
+  <option value="reflect">
+  <option value="energised">
+  <option value="wasRevived">
+  <option value="timesAttacked">
+</datalist>
+
 <script>
 /* ── Supabase config ── */
 const SUPABASE_URL        = 'https://djknvuaivmtudiecwztx.supabase.co';
@@ -915,40 +929,61 @@ function imgFallback(img) {
   }
 }
 
-const EFFECTS = [
-  {type:'healAllies',           name:'Heal Allies',              desc:'Heals every friendly unit.'},
-  {type:'healNexus',            name:'Heal Nexus',               desc:'Restores Nexus HP.'},
-  {type:'healSelf',             name:'Heal Self',                desc:'Heals itself.'},
-  {type:'dealDamageAllEnemies', name:'Damage All Enemies',       desc:'Damages every enemy unit.'},
-  {type:'damageRandomEnemy',    name:'Damage Random Enemy',      desc:'Deals damage to a random enemy unit.'},
-  {type:'attackUpSelf',         name:'+ATK to Self',             desc:'Raises ATK permanently.'},
-  {type:'hpUpSelf',             name:'+HP to Self',              desc:'Raises max HP permanently.'},
-  {type:'snipeDamage',          name:'Snipe Damage',             desc:'Deals damage to a target.'},
-  {type:'splashAdjacent',       name:'Splash Adjacent',          desc:'Hits adjacent enemies.'},
-  {type:'silenceTarget',        name:'Silence Target',           desc:'Silences target for N turns.'},
-  {type:'silenceRandomEnemy',   name:'Silence Random Enemy',     desc:'Silences a random enemy.'},
-  {type:'disableTarget',        name:'Disable Target',           desc:'Exhausts a target enemy.'},
-  {type:'drawCard',             name:'Draw Cards',               desc:'Draws N cards.'},
-  {type:'gainMana',             name:'Gain Mana',                desc:'Restores mana.'},
-  {type:'discountHandBySeries', name:'Discount by Series',       desc:'Reduces cost of matching cards.', needsSeries:true},
-  {type:'valuePerSeriesInEnemyBoard', name:'Scale by Enemy Series', desc:'Scales by enemy board.', needsSeries:true},
-  {type:'applyInvincible',      name:'Apply Invincible',         desc:'Invincible for N rounds.'},
-  {type:'stealAttack',          name:'Steal ATK from Target',    desc:'Drains ATK from target.'},
-  {type:'stealAttackFromAll',   name:'Steal ATK from All',       desc:'Drains ATK from all enemies.'},
-  {type:'reviveSelf',           name:'Revive Self (once)',        desc:'Revives with N HP once.'},
-  {type:'berserkOverflow',      name:'Berserk Overflow',         desc:'Overflow damage hits Nexus.'},
-  {type:'yandereRage',          name:'Yandere Rage',             desc:'On death, destroys a random enemy.'},
-  {type:'spawnCard',            name:'Spawn Card (Hand)',         desc:'Adds card copy to hand.', needsCard:true},
-  {type:'spawnOnBoard',         name:'Spawn Card (Board)',        desc:'Places card copy on board.', needsCard:true},
-  {type:'nexusHpToPowerUp',     name:'Nexus HP Power Up',        desc:'Drains Nexus HP for ATK/HP.', needsNexus:true},
-  {type:'giveAllAlliesEffect',  name:'Give Allies Effect',        desc:'Applies effect to all allies.'},
-  {type:'giveAllEnemiesEffect', name:'Give Enemies Effect',       desc:'Applies effect to all enemies.'},
+const EFFECTS=[
+  {type:'healAllies',          name:'Heal Allies',              desc:'Heals every friendly unit on the board by the value.'},
+  {type:'healNexus',           name:'Heal Nexus',               desc:'Restores the value to your Nexus (player HP).'},
+  {type:'healSelf',            name:'Heal Self',                desc:'This card heals itself up to its max HP by the value.'},
+  {type:'dealDamageAllEnemies',name:'Damage All Enemies',       desc:'Deals the value as damage to every enemy unit on the board.'},
+  {type:'damageRandomEnemy',   name:'Damage Random Enemy',      desc:'Deals the value as damage to a random enemy unit on the board.'},
+  {type:'attackUpSelf',        name:'+ATK to Self',             desc:'Permanently raises this card\'s Attack by the value.'},
+  {type:'hpUpSelf',            name:'+HP to Self',              desc:'Permanently raises this card\'s max and current HP by the value.'},
+  {type:'snipeDamage',         name:'Snipe Damage',             desc:'Deals the value directly to the targeted enemy unit.'},
+  {type:'splashAdjacent',      name:'Splash Adjacent',          desc:'Deals the value to enemies adjacent to the current attack target.'},
+  {type:'silenceTarget',       name:'Silence Target',           desc:'Silences the target unit for the value number of turns (their abilities are blocked).'},
+  {type:'silenceRandomEnemy',  name:'Silence Random Enemy',     desc:'Silences a random enemy unit for the value number of turns.'},
+  {type:'disableTarget',       name:'Disable Target',           desc:'Exhausts the target enemy so it can\'t attack this turn.'},
+  {type:'drawCard',            name:'Draw Cards',               desc:'Draws the value number of cards from your deck.'},
+  {type:'gainMana',            name:'Gain Mana',                desc:'Restores the value amount of mana (allowed to overflow current max mana).'},
+  {type:'discountHandBySeries',name:'Discount Hand by Series',  desc:'Reduces the mana cost of matching cards in hand by the value. Set the series to "all" to affect every card.',needsSeries:true},
+  {type:'valuePerSeriesInEnemyBoard',name:'Scale by Enemy Series',desc:'Sets context.scenario to (count of matching enemy units value). Chain this before another effect to scale by board state.',needsSeries:true},
+  {type:'applyInvincible',     name:'Apply Invincible',         desc:'Makes this card invincible for the value number of rounds blocks all incoming damage.'},
+  {type:'stealAttack',         name:'Steal ATK from Target',    desc:'Drains the value of ATK from the struck target and adds it to this card.'},
+  {type:'stealAttackFromAll',  name:'Steal ATK from All Enemies',desc:'Drains the value of ATK from every enemy and stacks it onto this card\'s ATK.'},
+  {type:'reviveSelf',          name:'Revive Self (once)',        desc:'Once per game: instead of dying, this card revives with the value HP remaining.'},
+  {type:'berserkOverflow',     name:'Berserk Overflow',         desc:'After killing a unit the excess damage carries over and hits the enemy Nexus.'},
+  {type:'yandereRage',         name:'Yandere Rage',             desc:'On death, destroys a random enemy unit dragging them down with it.'},
+  {type:'spawnCard',           name:'Spawn Card Hand',        desc:'Adds a copy of the named card to the player\'s hand (max hand size 4).',needsCard:true},
+  {type:'spawnOnBoard',        name:'Spawn Card Board',       desc:'Places a copy of the named card directly onto the board.',needsCard:true},
+  {type:'nexusHpToPowerUp',    name:'Nexus HP Power Up',      desc:'Drains value HP from a Nexus and converts it into permanent ATK + HP gains for this card.',needsNexus:true},
+  {type:'giveAllAlliesEffect', name:'Give Allies Effect',       desc:'Applies a nested sub-effect to every ally. For complex chaining edit the JSON directly for nested effects.',needsValue:true,needsEffect:true},
+  {type:'giveAllEnemiesEffect',name:'Give Enemies Effect',      desc:'Applies a nested sub-effect to every enemy. Edit the JSON directly for nested effects.',needsValue:true,needsEffect:true},
+  {type:'rollStat',            name:'Roll Random Stat',        desc:'Rolls a random stat value either for ATK or HP.', needsStats:true},
+  {type:'removeEnemyAbility',  name:'Remove Enemy Ability',    desc:'Removes a random ability from a random enemy unit for the value number of turns.'},
+  {type:'energised',           name:'Energised',               desc:'Gives haste to another card for another attack.', needsCard:true},
+  {type:'manaDrain',           name:'Mana Drain',              desc:'Drains the Max mana from the enemy.', needsValue:true},
+  {type:'manaSteal',           name:'Steal Target Stats',      desc:'Steals the value of MANA from the enemy and adds it to your nexus.' , needsValue:true, needsNexus:true},
+  {type:'giveSpecificCardBenefits', name:'Give Specific Card Benefits', desc:'Gives a specific card X+atk, X+hp and an effect for X amount of turns.' , needsValue:true, needsEffect:true, needsStats:true, needsCard:true},
+  {type:'applyShield',         name:'Apply Shield',            desc:'Applies a shield to the target that blocks the next X damage.', needsValue:true},
+  {type:'applyReflect',        name:'Apply Reflect',         desc:'When this unit is attacked, it strikes back dealing value damage to the attacker.', needsValue:true},
+  {type:'applyInvisibility',   name:'Apply Invisibility',     desc:'Makes this card invisible for the value number of turns, causing enemies to ignore it as a target.' , needsValue:true},
+  {type:'curseAllEnemies',     name:'Curse All Enemies',      desc:'Reduces all enemies\' max HP by the value.', needsValue:true},
+  {type:'lowerRandomEnemysAttack', name:'Lower Random Enemy ATK', desc:'Reduces one random enemy\'s ATK by the value.', needsValue:true},
+  {type:'lowerSpecificEnemysAttack', name:'Lower Target Enemy ATK', desc:'Reduces the struck enemy\'s ATK by the value.', needsValue:true},
+  {type:'lowerAllEnemiesAttack', name:'Lower All Enemies ATK', desc:'Reduces every enemy\'s ATK by the value.', needsValue:true},
+  {type:'powerExchange',       name:'Power Exchange',         desc:'Swaps this card\'s ATK with a random enemy\'s ATK.', needsValue:true},
+  {type:'multiStrike',         name:'Multi Strike',           desc:'Hits a random enemy 3× for value each.', needsValue:true},
+  {type:'drainHealthFromAll',  name:'Drain Health from All',  desc:'Steals HP from all enemies, heals self.', needsValue:true},
+  {type:'giveSpecificAllyEffect', name:'Give Specific Ally Effect', desc:'Applies a nested sub-effect to a specific ally.', needsValue:true, needsEffect:true, needsCard:true},
+  {type:'triggerDialogue',     name:'Trigger Dialogue',       desc:'Asks for: a free-text Dialogue Text input.', needsDialog:true},
 ];
 
-const TRIGGERS = [
-  {t:'onPlay',label:'On Play'},{t:'onAttack',label:'On Attack'},
-  {t:'onTurnEnd',label:'On Turn End'},{t:'onTurnStart',label:'On Turn Start'},
-  {t:'onDeath',label:'On Death'},{t:'whenAttacked',label:'When Attacked'},
+const TRIGGERS=[
+  {t:'onPlay',label:'On Play'},
+  {t:'onAttack',label:'On Attack'},
+  {t:'onTurnEnd',label:'On Turn End'},
+  {t:'onTurnStart',label:'On Turn Start'},
+  {t:'onDeath',label:'On Death'},
+  {t:'whenAttacked',label:'When Attacked'},
   {t:'whenNotAttack',label:'When Not Attacking'},
 ];
 
@@ -1447,29 +1482,36 @@ function renderESlots() {
           '</div>' +
         '</div>' +
 
-        '<div class="row2">' +
-          (ef.type === 'giveAllAlliesEffect' || ef.type === 'giveAllEnemiesEffect' ?
-            '<div class="field"><div class="lbl">Duration (turns)</div>' +
-              '<input type="text" id="es-duration-' + i + '" value="' + (ab.effectDuration||'') + '" placeholder="e.g. 2" oninput="esSync(' + i + ')">' +
-            '</div>' +
-            '<div class="field"><div class="lbl">Effect to Apply</div>' +
-              '<select id="es-subtype-' + i + '" onchange="esSync(' + i + ')">' +
-                EFFECTS.map(e => '<option value="' + e.type + '"' + (ab.effectSubType === e.type ? ' selected' : '') + '>' + e.name + '</option>').join('') +
-              '</select>' +
-            '</div>'
-          :
-            '<div class="field"><div class="lbl">Value / Amount</div>' +
-              '<input type="text" id="es-val-' + i + '" value="' + (ab.effectValue||'') + '" placeholder="e.g. 2" oninput="esSync(' + i + ')">' +
-            '</div>' +
-            '<div class="field" id="esSeries-' + i + '" style="display:' + (ef.needsSeries?'block':'none') + '">' +
-              '<div class="lbl">Target Series</div>' +
-              '<input type="text" id="es-series-' + i + '" value="' + (ab.effectSeries||'') + '" placeholder="e.g. New Haven" oninput="esSync(' + i + ')">' +
-            '</div>' +
-            '<div class="field" id="esCard-' + i + '" style="display:' + (ef.needsCard?'block':'none') + '">' +
-              '<div class="lbl">Card to Spawn</div>' +
-              '<input type="text" id="es-card-' + i + '" value="' + (ab.effectCardName||'') + '" placeholder="Exact card name" oninput="esSync(' + i + ')">' +
-            '</div>'
+        '<div class="row2" id="esVal-' + i + '" style="display:grid;">' +
+          '<div class="field"><div class="lbl">Value / Amount</div><input type="text" id="es-val-' + i + '" value="' + (ab.effectValue||'') + '" placeholder="e.g. 2" oninput="esSync(' + i + ')"></div>' +
+        '</div>' +
+
+        '<div class="field" id="esCard-' + i + '" style="display:' + (ef.needsCard?'block':'none') + '">' +
+          '<div class="lbl">Card to Target</div>' +
+          '<input type="text" id="es-card-' + i + '" value="' + (ab.effectCardName||'') + '" placeholder="Exact card name" oninput="esSync(' + i + ')">' +
+        '</div>' +
+
+        '<div class="field" id="esSeries-' + i + '" style="display:' + (ef.needsSeries?'block':'none') + '">' +
+          '<div class="lbl">Target Series</div>' +
+          '<input type="text" id="es-series-' + i + '" value="' + (ab.effectSeries||'') + '" placeholder="e.g. New Haven" oninput="esSync(' + i + ')">' +
+        '</div>' +
+
+        '<div class="field suggestion-container" id="esEffect-' + i + '" style="display:' + (ef.needsEffect?'block':'none') + '">' +
+          '<div class="lbl">' + (ab.effectType === 'giveSpecificCardBenefits' ? 'Status Type' : 'Sub-Effect') + '</div>' +
+          (ab.effectType === 'giveSpecificCardBenefits' 
+            ? '<input type="text" id="es-subEffect-' + i + '" data-slot-index="' + i + '" data-value="' + (ab.effectSubEffect||'') + '" value="' + (ab.effectSubEffect||'') + '" placeholder="Select status type" list="statusTypes" oninput="esSync(' + i + ')">'
+            : '<input type="text" id="es-subEffect-' + i + '" data-slot-index="' + i + '" data-value="' + (ab.effectSubEffect||'') + '" value="' + getEffectLabel(ab.effectSubEffect||'') + '" placeholder="Select effect" autocomplete="off"><div id="es-subEffect-dropdown-' + i + '" class="custom-dropdown"></div>'
           ) +
+        '</div>' +
+
+        '<div class="row2" id="esStats-' + i + '" style="display:' + (ef.needsStats?'block':'none') + ';">' +
+          '<div class="field"><div class="lbl">ATK Boost</div><input type="number" id="es-atkBoost-' + i + '" value="' + (ab.atkBoost || 0) + '" min="0" oninput="esSync(' + i + ')"></div>' +
+          '<div class="field"><div class="lbl">HP Boost</div><input type="number" id="es-hpBoost-' + i + '" value="' + (ab.hpBoost || 0) + '" min="0" oninput="esSync(' + i + ')"></div>' +
+        '</div>' +
+
+        '<div class="row4" id="esATKHP-' + i + '" style="display:' + (ef.needsATK || ef.needsHP ? 'grid' : 'none') + ';">' +
+          (ef.needsATK ? '<div class="field"><div class="lbl">ATK</div><input type="number" id="es-atk-set-' + i + '" value="' + (ab.atkVal || 0) + '" min="0" oninput="esSync(' + i + ')"></div>' : '') +
+          (ef.needsHP ? '<div class="field"><div class="lbl">HP</div><input type="number" id="es-hp-set-' + i + '" value="' + (ab.hpVal || 0) + '" min="0" oninput="esSync(' + i + ')"></div>' : '') +
         '</div>' +
 
         '<div id="esNexus-' + i + '" style="display:' + (ef.needsNexus?'block':'none') + '">' +
@@ -1483,6 +1525,11 @@ function renderESlots() {
               '</div>' +
             '</div>' +
           '</div>' +
+        '</div>' +
+
+        '<div class="field" id="esDialog-' + i + '" style="display:' + (ef.needsDialog?'block':'none') + '">' +
+          '<div class="lbl">Dialogue Text</div>' +
+          '<textarea id="es-dialog-' + i + '" placeholder="Enter dialogue text" oninput="esSync(' + i + ')">' + (ab.effectDialog||'') + '</textarea>' +
         '</div>' +
 
         '<div class="divider"></div>' +
@@ -1542,6 +1589,10 @@ function renderESlots() {
 
     container.appendChild(slot);
 
+    if (ef.needsEffect && ab.effectType !== 'giveSpecificCardBenefits') {
+      setupAutocompleteArray('es-subEffect-' + i, 'es-subEffect-dropdown-' + i, EFFECTS.map(function(e) { return {label: e.name, value: e.type}; }));
+    }
+
     var scInp = document.getElementById('es-sc-' + i);
     if (scInp) scInp.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { e.preventDefault(); esAddCard(i); }
@@ -1559,9 +1610,13 @@ function esPickEff(i,el) {
   document.querySelectorAll('#esEff-'+i+' .eff-card').forEach(function(c){c.classList.remove('sel');});
   el.classList.add('sel'); eAbilities[i].effectType=el.dataset.et;
   var ef=EFFECTS.find(function(e){return e.type===el.dataset.et;})||{};
-  document.getElementById('esSeries-'+i).style.display=ef.needsSeries?'block':'none';
   document.getElementById('esCard-'+i).style.display=ef.needsCard?'block':'none';
+  document.getElementById('esEffect-'+i).style.display=ef.needsEffect?'block':'none';
+  document.getElementById('esStats-'+i).style.display=ef.needsStats?'block':'none';
+  document.getElementById('esATKHP-'+i).style.display=(ef.needsATK || ef.needsHP)?'grid':'none';
+  document.getElementById('esSeries-'+i).style.display=ef.needsSeries?'block':'none';
   document.getElementById('esNexus-'+i).style.display=ef.needsNexus?'block':'none';
+  if(document.getElementById('esDialog-'+i)) document.getElementById('esDialog-'+i).style.display=ef.needsDialog?'block':'none';
   refreshEsHeader(i);
 }
 function esPickNexus(i,el) {
@@ -1602,6 +1657,12 @@ function esSync(i) {
   ab.effectSubType=(document.getElementById('es-subtype-'+i)||{value:'healAllies'}).value||'healAllies';
   ab.effectSeries=(document.getElementById('es-series-'+i)||{value:''}).value||'';
   ab.effectCardName=(document.getElementById('es-card-'+i)||{value:''}).value||'';
+  ab.effectSubEffect=(document.getElementById('es-subEffect-'+i)||{value:''}).value||'';
+  ab.effectDialog=(document.getElementById('es-dialog-'+i)||{value:''}).value||'';
+  ab.atkBoost=parseInt((document.getElementById('es-atkBoost-'+i)||{value:'0'}).value)||0;
+  ab.hpBoost=parseInt((document.getElementById('es-hpBoost-'+i)||{value:'0'}).value)||0;
+  ab.atkVal=parseInt((document.getElementById('es-atk-set-'+i)||{value:'0'}).value)||0;
+  ab.hpVal=parseInt((document.getElementById('es-hp-set-'+i)||{value:'0'}).value)||0;
   ab.atkGain=parseInt((document.getElementById('es-atk-'+i)||{value:'1'}).value)||1;
   ab.hpGain=parseInt((document.getElementById('es-hp-'+i)||{value:'1'}).value)||1;
   ab.ucThreshold=parseInt((document.getElementById('es-thresh-'+i)||{value:'0'}).value)||0;
@@ -1636,11 +1697,19 @@ function buildEffect(ab) {
   var ef={type:ab.effectType};
   var info=EFFECTS.find(function(e){return e.type===ab.effectType;})||{};
   if(info.needsSeries) ef.series=ab.effectSeries;
-  if(info.needsCard){ef.cardName=ab.effectCardName;ef.amount=1;}
+  if(info.needsCard) ef.cardName=ab.effectCardName;
+  if(info.needsEffect && ab.effectType !== 'giveSpecificCardBenefits') ef.effect={type:ab.effectSubEffect};
+  if(info.needsStats){ef.atkBoost=ab.atkBoost;ef.hpBoost=ab.hpBoost;}
+  if(info.needsATK) ef.atk=ab.atkVal;
+  if(info.needsHP) ef.hp=ab.hpVal;
   if(info.needsNexus){ef.atkGain=ab.atkGain;ef.hpGain=ab.hpGain;ef.target=ab.nexusSide;}
+  if(info.needsDialog) ef.dialogText=ab.effectDialog;
   if(ab.effectType === 'giveAllAlliesEffect' || ab.effectType === 'giveAllEnemiesEffect'){
     ef.value = Number(ab.effectDuration) || 1;
     ef.effect = {type: ab.effectSubType, value: 1};
+  } else if(ab.effectType === 'giveSpecificCardBenefits'){
+    ef.statusType = ab.effectSubEffect;
+    ef.statusAmount = Number(ab.effectValue) || 1;
   } else if(ab.effectValue!==''){var n=Number(ab.effectValue);ef.value=isNaN(n)?ab.effectValue:n;}
   if(ab.hasCond){
     var sc={type:ab.condType};
