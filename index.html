@@ -1011,7 +1011,7 @@ const EFFECTS=[
   {type:'drainHealthFromAll',  name:'Drain Health from All',  desc:'Steals HP from all enemies, heals self.', needsValue:true},
   {type:'giveSpecificAllyEffect', name:'Give Specific Ally Effect', desc:'Applies a nested sub-effect to a specific ally.', needsValue:true, needsEffect:true, needsCard:true},
   {type:'triggerDialogue',     name:'Trigger Dialogue',       desc:'Asks for: a free-text Dialogue Text input.', needsDialog:true},
-  {type:'randomSummon',        name:'Random Summon',           desc:'Summons a random card from a user-defined list of cards.', needsCardList:true},
+  {type:'summonRandom',        name:'Summon Random',           desc:'Summons a random card from a user-defined list of cards.', needsCardList:true},
   {type:'damageEnemyNexus',    name:'Damage Enemy Nexus',      desc:'Deals the value as damage to the enemy Nexus.', needsValue:true},
 ];
 
@@ -1365,6 +1365,7 @@ function slotSync(i){
   ab.effectSubType=subtypeInput.dataset.value||subtypeInput.value||'healAllies';
   ab.effectSeries=(document.getElementById('ae-series-'+i)||{value:''}).value||'';
    ab.effectCardName=(document.getElementById('ae-cardname-'+i)||{value:''}).value||'';
+   ab.effectCardList=ab.effectCardList||[];
 
    ab.effectSubEffect=(document.getElementById('ae-subEffect-'+i)||{value:''}).value||'';
   ab.effectDialog=(document.getElementById('ae-dialog-'+i)||{value:''}).value||'';
@@ -1550,6 +1551,10 @@ function buildAbilityEffect(ab){
   var info=EFFECTS.find(function(e){return e.type===ab.effectType;})||{};
   if(info.needsSeries) ef.series=ab.effectSeries;
   if(info.needsCard) ef.cardName=ab.effectCardName;
+  if(info.needsCardList) {
+    ef.cardNames = [].concat(ab.effectCardList || []);
+    ef.amount = Number(ab.effectValue) || 1;
+  }
   if(info.needsEffect && ab.effectType !== 'giveSpecificCardBenefits') ef.effect={type:ab.effectSubEffect};
   if(info.needsStats){ef.atkBoost=ab.atkBoost;ef.hpBoost=ab.hpBoost;}
   if(info.needsATK) ef.atk=ab.atkVal;

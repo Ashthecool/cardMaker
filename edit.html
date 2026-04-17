@@ -975,7 +975,7 @@ const EFFECTS=[
   {type:'drainHealthFromAll',  name:'Drain Health from All',  desc:'Steals HP from all enemies, heals self.', needsValue:true},
   {type:'giveSpecificAllyEffect', name:'Give Specific Ally Effect', desc:'Applies a nested sub-effect to a specific ally.', needsValue:true, needsEffect:true, needsCard:true},
   {type:'triggerDialogue',     name:'Trigger Dialogue',       desc:'Asks for: a free-text Dialogue Text input.', needsDialog:true},
-  {type:'randomSummon',        name:'Random Summon',           desc:'Summons a random card from a user-defined list of cards.', needsCardList:true},
+  {type:'summonRandom',        name:'Summon Random',           desc:'Summons a random card from a user-defined list of cards.', needsCardList:true},
   {type:'damageEnemyNexus',    name:'Damage Enemy Nexus',      desc:'Deals the value as damage to the enemy Nexus.', needsValue:true},
 ];
 
@@ -1299,9 +1299,10 @@ function openEdit(idx) {
             var ab = makeDefaultAbility();
             ab.trigger = trigger;
             ab.effectType = ef.type || 'healAllies';
-            ab.effectValue = ef.value !== undefined ? String(ef.value) : '';
+            ab.effectValue = ef.value !== undefined ? String(ef.value) : (ef.amount !== undefined ? String(ef.amount) : '');
             ab.effectSeries = ef.series || '';
             ab.effectCardName = ef.cardName || '';
+            ab.effectCardList = Array.isArray(ef.cardNames) ? ef.cardNames.slice() : [];
             ab.atkGain = ef.atkGain || 1;
             ab.hpGain  = ef.hpGain  || 1;
             ab.nexusSide = ef.target || 'player';
@@ -1404,7 +1405,7 @@ function makeDefaultAbility() {
     atkGain:1, hpGain:1, nexusSide:'player',
     hasCond:false, condType:'or',
     ucSide:'enemy', ucOp:'less', ucThreshold:3,
-    condCards:[], open:true,
+    condCards:[], effectCardList:[], open:true,
   };
 }
 
@@ -1741,6 +1742,10 @@ function buildEffect(ab) {
   var info=EFFECTS.find(function(e){return e.type===ab.effectType;})||{};
   if(info.needsSeries) ef.series=ab.effectSeries;
   if(info.needsCard) ef.cardName=ab.effectCardName;
+  if(info.needsCardList) {
+    ef.cardNames = [].concat(ab.effectCardList || []);
+    ef.amount = Number(ab.effectValue) || 1;
+  }
   if(info.needsEffect && ab.effectType !== 'giveSpecificCardBenefits') ef.effect={type:ab.effectSubEffect};
   if(info.needsStats){ef.atkBoost=ab.atkBoost;ef.hpBoost=ab.hpBoost;}
   if(info.needsATK) ef.atk=ab.atkVal;
@@ -1753,7 +1758,7 @@ function buildEffect(ab) {
   } else if(ab.effectType === 'giveSpecificCardBenefits'){
     ef.statusType = ab.effectSubEffect;
     ef.statusAmount = Number(ab.effectValue) || 1;
-  } else if(ab.effectValue!==''){var n=Number(ab.effectValue);ef.value=isNaN(n)?ab.effectValue:n;}
+  } else if(!info.needsCardList && ab.effectValue!==''){var n=Number(ab.effectValue);ef.value=isNaN(n)?ab.effectValue:n;}
   if(ab.hasCond){
     var sc={type:ab.condType};
     if(ab.condType==='unitCount'){
