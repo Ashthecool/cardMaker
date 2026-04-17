@@ -1500,9 +1500,9 @@ function renderESlots() {
             '<button class="btn-sm" onclick="esAddEffectCard(' + i + ')">+ Add</button>' +
           '</div>' +
           '<div class="tag-row" id="eecTags-' + i + '">' +
-            ((ab.effectCardList||[]).map(function(n){' +
-              'return \'<div class="tag">\'+n+\'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+n.replace(/\'/g,"\\\\'")+'\')">&#8212;</span></div>\';' +
-            '}).join('')||'') +
+            ((ab.effectCardList||[]).map(function(n) {
+              return '<div class="tag">' + n + '<span class="tag-x" onclick="esRemoveEffectCard(' + i + ',\'' + n.replace(/\'/g,"\\'") + '\')">&#8212;</span></div>';
+            }).join('') || '') +
           '</div>' +
         '</div>' +
 
