@@ -415,6 +415,10 @@ input::-webkit-calendar-picker-indicator {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Card Editor
     </a>
+    <a class="mode-btn" href="review.html" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fbbf24;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Review
+    </a>
 </div>
 
 <!-- Steps -->
@@ -663,7 +667,8 @@ input::-webkit-calendar-picker-indicator {
     <div id="saveStatus" style="display:none"></div>
     <div class="nav-row">
       <button class="btn btn-ghost" onclick="goTo(3)">Back</button>
-      <div style="display:flex;gap:10px;align-items:center">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="openPasteModal()" title="Paste a card JSON from clipboard to load it into the editor" style="font-size:12px">📋 Paste JSON</button>
         <button class="btn btn-secondary" onclick="seedCardsJson()" title="Upload your local cards.json file to Supabase once to get started" style="font-size:12px">⬆ Seed cards.json</button>
         <button class="btn btn-success" onclick="saveCard()">Save to Supabase</button>
       </div>
@@ -725,9 +730,9 @@ function goTo(n) {
 <script>
 
 // ── Supabase config ───────────────────────────────────────────────────────
+// Uses the anon/public key + RLS policies on the bucket (no service key needed)
 const SUPABASE_URL    = 'https://djknvuaivmtudiecwztx.supabase.co';
-const SUPABASE_KEY    = 'sb_publishable_oKPY6OIcovoVQlLZqBOLMg_skAxeCwp';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqa252dWFpdm10dWRpZWN3enR4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjEwMjU5NCwiZXhwIjoyMDkxNjc4NTk0fQ.Yj9bAcr8COoeALIP8eeZj9ubpBt6SZxllIXKPQncN2c'
+const SUPABASE_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqa252dWFpdm10dWRpZWN3enR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDI1OTQsImV4cCI6MjA5MTY3ODU5NH0.eqaERtPNzDbOW7ZTJdQ793oPtw8jNm665MTAmZYjYd4';
 const SUPABASE_BUCKET = 'card-images';
 
 async function uploadImageToSupabase(file, cardName) {
@@ -739,7 +744,7 @@ async function uploadImageToSupabase(file, cardName) {
         {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_KEY,
                 'Content-Type': file.type || 'image/jpeg',
                 'x-upsert': 'true'
             },
@@ -854,13 +859,12 @@ function setupAutocomplete(inputId, dropdownId, key, onSelect) {
     const showMatches = () => {
         const val = input.value.toLowerCase();
         dropdown.innerHTML = '';
-        
-        // Get unique values from existingCards
+
         const suggestions = [...new Set(existingCards.map(c => c[key]))]
-            .filter(item => item && item.toLowerCase().includes(val))
+            .filter(item => item && (val === '' || item.toLowerCase().includes(val)))
             .sort();
 
-        if (suggestions.length > 0 && val.length > 0) {
+        if (suggestions.length > 0) {
             suggestions.forEach(text => {
                 const div = document.createElement('div');
                 div.className = 'suggestion-item';
@@ -870,7 +874,7 @@ function setupAutocomplete(inputId, dropdownId, key, onSelect) {
                     input.value = text;
                     dropdown.style.display = 'none';
                     if (typeof onSelect === 'function') onSelect(input, text);
-                    else sync(); // Trigger the preview update
+                    else sync();
                 };
                 dropdown.appendChild(div);
             });
@@ -881,9 +885,14 @@ function setupAutocomplete(inputId, dropdownId, key, onSelect) {
     };
 
     input.addEventListener('input', showMatches);
-    input.addEventListener('focus', showMatches);
+    input.addEventListener('focus', () => {
+        if (existingCards.length === 0) {
+            refreshSuggestions().then(showMatches);
+        } else {
+            showMatches();
+        }
+    });
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
         if (!input.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.style.display = 'none';
@@ -902,8 +911,10 @@ function setupAutocompleteArray(inputId, dropdownId, items) {
         const val = input.value.toLowerCase();
         dropdown.innerHTML = '';
 
-        const suggestions = normalizedItems.filter(item => item.label.toLowerCase().includes(val));
-        if (suggestions.length > 0 && val.length > 0) {
+        const suggestions = normalizedItems.filter(item =>
+            val === '' || item.label.toLowerCase().includes(val)
+        );
+        if (suggestions.length > 0) {
             suggestions.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'suggestion-item';
@@ -993,7 +1004,7 @@ const EFFECTS=[
   {type:'nexusHpToPowerUp',    name:'Nexus HP Power Up',      desc:'Drains value HP from a Nexus and converts it into permanent ATK + HP gains for this card.',needsNexus:true},
   {type:'giveAllAlliesEffect', name:'Give Allies Effect',       desc:'Applies a nested sub-effect to every ally. For complex chaining edit the JSON directly for nested effects.',needsValue:true,needsEffect:true},
   {type:'giveAllEnemiesEffect',name:'Give Enemies Effect',      desc:'Applies a nested sub-effect to every enemy. Edit the JSON directly for nested effects.',needsValue:true,needsEffect:true},
-  {type:'rollStat',            name:'Roll Random Stat',        desc:'Rolls a random stat value either for ATK or HP.', needsStats:true},
+  {type:'rollStat',            name:'Roll Random Stat',        desc:'Rolls a random stat value either for ATK or HP.', needsRollStat:true},
   {type:'removeEnemyAbility',  name:'Remove Enemy Ability',    desc:'Removes a random ability from a random enemy unit for the value number of turns.'},
   {type:'energised',           name:'Energised',               desc:'Gives haste to another card for another attack.', needsCard:true},
   {type:'manaDrain',           name:'Mana Drain',              desc:'Drains the Max mana from the enemy.', needsValue:true},
@@ -1026,6 +1037,7 @@ function makeDefaultAbility(){
     hasCond:false,condType:'or',
     ucSide:'enemy',ucOp:'less',ucThreshold:3,
     condCards:[],
+    rollStat:'hp',rollTries:1,rollMin:1,rollMax:4,rollTarget:'allAllies',
     open:true,
   };
 }
@@ -1188,6 +1200,36 @@ function renderAllSlots(){
           '<div class="field"><div class="lbl">HP Boost</div><input type="number" id="ae-hpBoost-'+i+'" value="'+(ab.hpBoost || 0)+'" min="0" oninput="slotSync('+i+')"></div>'+
         '</div>'+
 
+        '<div id="fRollStat-'+i+'" style="display:'+(ef.needsRollStat?'flex':'none')+';flex-direction:column;gap:12px;">'+
+          '<div class="row2">'+
+            '<div class="field"><div class="lbl">Stat</div>'+
+              '<div class="pill-grid" id="gRollStatStat-'+i+'">'+
+                '<div class="pill'+(( ab.rollStat||'hp')==='hp'?' sel':'')+'" data-rs="hp" onclick="slotPickRollStat('+i+',this)">HP</div>'+
+                '<div class="pill'+((ab.rollStat||'hp')==='atk'?' sel':'')+'" data-rs="atk" onclick="slotPickRollStat('+i+',this)">ATK</div>'+
+              '</div>'+
+            '</div>'+
+            '<div class="field"><div class="lbl">Tries</div>'+
+              '<input type="number" id="ae-rollTries-'+i+'" value="'+(ab.rollTries||1)+'" min="1" oninput="slotSync('+i+')">'+
+            '</div>'+
+          '</div>'+
+          '<div class="row2">'+
+            '<div class="field"><div class="lbl">Min Roll</div>'+
+              '<input type="number" id="ae-rollMin-'+i+'" value="'+(ab.rollMin||1)+'" min="0" oninput="slotSync('+i+')">'+
+            '</div>'+
+            '<div class="field"><div class="lbl">Max Roll</div>'+
+              '<input type="number" id="ae-rollMax-'+i+'" value="'+(ab.rollMax||4)+'" min="1" oninput="slotSync('+i+')">'+
+            '</div>'+
+          '</div>'+
+          '<div class="field"><div class="lbl">Target</div>'+
+            '<div class="pill-grid" id="gRollStatTarget-'+i+'">'+
+              '<div class="pill'+((ab.rollTarget||'allAllies')==='allAllies'?' sel':'')+'" data-rt="allAllies" onclick="slotPickRollTarget('+i+',this)">All Allies</div>'+
+              '<div class="pill'+((ab.rollTarget||'allAllies')==='self'?' sel':'')+'" data-rt="self" onclick="slotPickRollTarget('+i+',this)">Self</div>'+
+              '<div class="pill'+((ab.rollTarget||'allAllies')==='allEnemies'?' sel':'')+'" data-rt="allEnemies" onclick="slotPickRollTarget('+i+',this)">All Enemies</div>'+
+              '<div class="pill'+((ab.rollTarget||'allAllies')==='randomEnemy'?' sel':'')+'" data-rt="randomEnemy" onclick="slotPickRollTarget('+i+',this)">Random Enemy</div>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+
         '<div class="row4" id="fATKHP-'+i+'" style="display:'+(ef.needsATK || ef.needsHP ? 'grid' : 'none')+';">'+
           (ef.needsATK ? '<div class="field"><div class="lbl">ATK</div><input type="number" id="ae-atk-set-'+i+'" value="'+(ab.atkVal || 0)+'" min="0" oninput="slotSync('+i+')"></div>' : '') +
           (ef.needsHP ? '<div class="field"><div class="lbl">HP</div><input type="number" id="ae-hp-set-'+i+'" value="'+(ab.hpVal || 0)+'" min="0" oninput="slotSync('+i+')"></div>' : '') +
@@ -1343,6 +1385,18 @@ function slotPickUCOp(i,el){
   S.abilities[i].ucOp=el.dataset.uo;
   updateCard();
 }
+function slotPickRollStat(i,el){
+  document.querySelectorAll('#gRollStatStat-'+i+' .pill').forEach(function(p){p.classList.remove('sel');});
+  el.classList.add('sel');
+  S.abilities[i].rollStat=el.dataset.rs;
+  updateCard();
+}
+function slotPickRollTarget(i,el){
+  document.querySelectorAll('#gRollStatTarget-'+i+' .pill').forEach(function(p){p.classList.remove('sel');});
+  el.classList.add('sel');
+  S.abilities[i].rollTarget=el.dataset.rt;
+  updateCard();
+}
 function slotToggleCond(i,event){
   event.stopPropagation();
   S.abilities[i].hasCond=!S.abilities[i].hasCond;
@@ -1376,6 +1430,9 @@ function slotSync(i){
   ab.atkGain=parseInt((document.getElementById('ae-atk-'+i)||{value:'1'}).value)||1;
   ab.hpGain=parseInt((document.getElementById('ae-hp-'+i)||{value:'1'}).value)||1;
   ab.ucThreshold=parseInt((document.getElementById('uc-threshold-'+i)||{value:'0'}).value)||0;
+  ab.rollTries=parseInt((document.getElementById('ae-rollTries-'+i)||{value:'1'}).value)||1;
+  ab.rollMin=parseInt((document.getElementById('ae-rollMin-'+i)||{value:'1'}).value)||1;
+  ab.rollMax=parseInt((document.getElementById('ae-rollMax-'+i)||{value:'4'}).value)||4;
   updateCard();
 }
 function slotAddCard(i){
@@ -1557,6 +1614,13 @@ function buildAbilityEffect(ab){
   }
   if(info.needsEffect && ab.effectType !== 'giveSpecificCardBenefits') ef.effect={type:ab.effectSubEffect};
   if(info.needsStats){ef.atkBoost=ab.atkBoost;ef.hpBoost=ab.hpBoost;}
+  if(info.needsRollStat){
+    ef.stat=ab.rollStat||'hp';
+    ef.tries=String(ab.rollTries||1);
+    ef.min=ab.rollMin||1;
+    ef.max=ab.rollMax||4;
+    ef.target=ab.rollTarget||'allAllies';
+  }
   if(info.needsATK) ef.atk=ab.atkVal;
   if(info.needsHP) ef.hp=ab.hpVal;
   if(info.needsNexus){ef.atkGain=ab.atkGain;ef.hpGain=ab.hpGain;ef.target=ab.nexusSide;}
@@ -1699,32 +1763,32 @@ async function queueCurrentCard(){
 
 /* ”€ Save ”€ */
 // ── Supabase cards.json helpers ───────────────────────────────────────────
+
 const CARDS_JSON_PATH = 'cards.json';
 
 async function fetchCardsFromSupabase() {
   const url = SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + CARDS_JSON_PATH;
-  const res = await fetch(url + '?t=' + Date.now()); // cache-bust
-  if (!res.ok) return []; // doesn't exist yet — first save
+  const res = await fetch(url + '?t=' + Date.now());
+  if (!res.ok) return [];
   return await res.json();
 }
 
 async function pushCardsToSupabase(cards) {
-  const body = JSON.stringify(cards, null, 2);
   const res = await fetch(
     SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + CARDS_JSON_PATH,
     {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
         'Content-Type': 'application/json',
         'x-upsert': 'true'
       },
-      body: body
+      body: JSON.stringify(cards, null, 2)
     }
   );
   if (!res.ok) {
     const err = await res.text();
-    throw new Error('Could not save cards.json to Supabase: ' + err);
+    throw new Error('Could not save cards.json: ' + err);
   }
 }
 
@@ -1821,6 +1885,126 @@ async function handleSeedFile(file) {
 renderBatchList();
 updateCard();
 updateSlotUI();
+</script>
+
+<!-- Paste JSON Modal -->
+<div id="pasteModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);">
+  <div style="background:#13111c;border:1.5px solid rgba(99,102,241,.35);border-radius:16px;padding:28px;width:min(560px,94vw);display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.7);animation:fadeUp .25s ease both">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Cinzel',serif;font-size:17px;color:#fff;letter-spacing:.04em">📋 Paste Card JSON</div>
+      <button onclick="closePasteModal()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">&times;</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted)">Paste a single card object or an array. The first card (or the object itself) will be loaded into the editor.</div>
+    <textarea id="pasteJsonInput" placeholder='Paste JSON here, or click "From Clipboard"…' style="min-height:180px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+    <div id="pasteJsonError" style="display:none;font-size:12px;color:#f87171;padding:8px 12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="pasteFromClipboard()" style="font-size:12px">⬇ From Clipboard</button>
+      <button class="btn btn-ghost" onclick="closePasteModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="loadPastedJSON()">Load into Editor</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openPasteModal(){
+  document.getElementById('pasteModal').style.display='flex';
+  document.getElementById('pasteJsonError').style.display='none';
+  document.getElementById('pasteJsonInput').value='';
+  setTimeout(function(){document.getElementById('pasteJsonInput').focus();},80);
+}
+function closePasteModal(){
+  document.getElementById('pasteModal').style.display='none';
+}
+document.getElementById('pasteModal').addEventListener('click',function(e){
+  if(e.target===this) closePasteModal();
+});
+async function pasteFromClipboard(){
+  try{
+    const text=await navigator.clipboard.readText();
+    document.getElementById('pasteJsonInput').value=text;
+    document.getElementById('pasteJsonError').style.display='none';
+  } catch(e){
+    document.getElementById('pasteJsonError').style.display='';
+    document.getElementById('pasteJsonError').textContent='Clipboard read failed — please paste manually (Ctrl+V / Cmd+V).';
+  }
+}
+function loadPastedJSON(){
+  const errEl=document.getElementById('pasteJsonError');
+  errEl.style.display='none';
+  let raw=document.getElementById('pasteJsonInput').value.trim();
+  if(!raw){errEl.style.display='';errEl.textContent='Nothing pasted yet.';return;}
+  let parsed;
+  try{ parsed=JSON.parse(raw); } catch(e){errEl.style.display='';errEl.textContent='Invalid JSON: '+e.message;return;}
+  // Accept array (take first) or a single object
+  const card=Array.isArray(parsed)?parsed[0]:parsed;
+  if(!card||typeof card!=='object'){errEl.style.display='';errEl.textContent='No valid card object found.';return;}
+  applyCardToState(card);
+  closePasteModal();
+}
+function applyCardToState(card){
+  // Basic fields
+  S.name        = card.name        || '';
+  S.series      = card.series      || '';
+  S.description = card.description || '';
+  S.atk         = Number(card.atk)  || 0;
+  S.hp          = Number(card.hp)   || 0;
+  S.cost        = Number(card.cost) || 0;
+  S.rarity      = card.rarity       || 'COMMON';
+  S.ability     = card.ability      || 'none';
+  S.imageUrl    = card.image        || '';
+
+  // Abilities
+  S.aeActive  = false;
+  S.abilities = [];
+  if(card.abilities && typeof card.abilities==='object'){
+    Object.entries(card.abilities).forEach(function([trigger, effects]){
+      (Array.isArray(effects)?effects:[effects]).forEach(function(ef){
+        var ab=makeDefaultAbility();
+        ab.trigger=trigger;
+        ab.effectType=ef.type||'healAllies';
+        // rollStat specific
+        if(ef.type==='rollStat'){
+          ab.rollStat   = ef.stat    || 'hp';
+          ab.rollTries  = parseInt(ef.tries)||1;
+          ab.rollMin    = ef.min     || 1;
+          ab.rollMax    = ef.max     || 4;
+          ab.rollTarget = ef.target  || 'allAllies';
+        }
+        ab.effectValue      = ef.value!==undefined ? String(ef.value) : '';
+        ab.effectSeries     = ef.series     || '';
+        ab.effectCardName   = ef.cardName   || '';
+        ab.effectDuration   = ef.value!==undefined && (ef.type==='giveAllAlliesEffect'||ef.type==='giveAllEnemiesEffect') ? String(ef.value) : '';
+        ab.effectSubType    = (ef.effect&&ef.effect.type) || 'healAllies';
+        ab.effectSubEffect  = ef.statusType || (ef.effect&&ef.effect.type) || '';
+        ab.effectDialog     = ef.dialogText || '';
+        ab.effectCardList   = ef.cardNames  || [];
+        ab.atkBoost         = ef.atkBoost   || 0;
+        ab.hpBoost          = ef.hpBoost    || 0;
+        ab.atkGain          = ef.atkGain    || 1;
+        ab.hpGain           = ef.hpGain     || 1;
+        ab.nexusSide        = ef.target==='player'||ef.target==='enemy' ? ef.target : (ab.nexusSide||'player');
+        // Scenario / condition
+        if(ef.scenario){
+          ab.hasCond=true;
+          ab.condType=ef.scenario.type||'or';
+          ab.condCards=ef.scenario.cards||[];
+          ab.ucSide=ef.scenario.side||'enemy';
+          ab.ucOp=ef.scenario.operator||'less';
+          ab.ucThreshold=ef.scenario.threshold||3;
+        }
+        S.abilities.push(ab);
+      });
+    });
+    if(S.abilities.length>0) S.aeActive=true;
+  }
+  syncFormFromState();
+  goTo(0);
+  // Show a status message
+  var statusEl=document.getElementById('saveStatus');
+  statusEl.style.display='';
+  statusEl.className='status-msg status-ok';
+  statusEl.textContent='Loaded "'+S.name+'" from JSON. Review and edit, then queue or save.';
+}
 </script>
 </body>
 </html>
