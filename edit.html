@@ -1189,9 +1189,10 @@ async function loadCards() {
 
 function updateDatalist() {
   const datalist = document.getElementById('cardNames');
-  datalist.innerHTML = allCards.map(c => '<option value="' + c.name.replace(/"/g, '&quot;') + '">').join('');
+  datalist.innerHTML = allCards.map(c => '<option value="' + (c.name || '').replace(/"/g, '&quot;') + '">').join('');
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   filtered = allCards.filter(c => {
+
     const matchRarity = activeRarity === 'ALL' || c.rarity === activeRarity;
     const matchSearch = !q || (c.name||'').toLowerCase().includes(q) || (c.series||'').toLowerCase().includes(q);
     return matchRarity && matchSearch;
@@ -1623,7 +1624,7 @@ function renderESlots() {
           '</div>' +
           '<div class="tag-row" id="eecTags-' + i + '">' +
             ((ab.effectCardList||[]).map(function(n) {
-              return '<div class="tag">' + n + '<span class="tag-x" onclick="esRemoveEffectCard(' + i + ',\'' + n.replace(/\'/g,"\\'") + '\')">&#8212;</span></div>';
+              return '<div class="tag">' + (n || '') + '<span class="tag-x" onclick="esRemoveEffectCard(' + i + ',\'' + (n || '').replace(/'/g,"\\'") + '\')">—</span></div>';
             }).join('') || '') +
           '</div>' +
         '</div>' +
@@ -1696,7 +1697,7 @@ function renderESlots() {
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:5px" id="es-tags-' + i + '">' +
               (ab.condCards||[]).map(function(n) {
-                return '<div class="tag">' + n + '<span class="tag-x" onclick="esRemCard(' + i + ',\'' + n.replace(/'/g,"\\'") + '\')">—</span></div>';
+                return '<div class="tag">' + (n || '') + '<span class="tag-x" onclick="esRemCard(' + i + ',\'' + (n || '').replace(/'/g,"\\'") + '\')">—</span></div>';
               }).join('') +
             '</div>' +
           '</div>' +
@@ -1820,14 +1821,14 @@ function esAddCard(i) {
   eAbilities[i].condCards.push(name); inp.value='';
   var tags=document.getElementById('es-tags-'+i);
   if(tags) tags.innerHTML=eAbilities[i].condCards.map(function(n){
-    return '<div class="tag">'+n+'<span class="tag-x" onclick="esRemCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">—</span></div>';
+    return '<div class="tag">'+(n || '')+'<span class="tag-x" onclick="esRemCard('+i+',\''+(n || '').replace(/'/g,"\\'")+'\')">—</span></div>';
   }).join('');
 }
 function esRemCard(i,name) {
   eAbilities[i].condCards=eAbilities[i].condCards.filter(function(n){return n!==name;});
   var tags=document.getElementById('es-tags-'+i);
   if(tags) tags.innerHTML=eAbilities[i].condCards.map(function(n){
-    return '<div class="tag">'+n+'<span class="tag-x" onclick="esRemCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">—</span></div>';
+    return '<div class="tag">'+(n || '')+'<span class="tag-x" onclick="esRemCard('+i+',\''+(n || '').replace(/'/g,"\\'")+'\')">—</span></div>';
   }).join('');
 }
 function esAddEffectCard(i) {
@@ -1838,7 +1839,7 @@ function esAddEffectCard(i) {
   eAbilities[i].effectCardList.push(name); inp.value='';
   var tags=document.getElementById('eecTags-'+i);
   if(tags) tags.innerHTML=eAbilities[i].effectCardList.map(function(n){
-    return '<div class="tag">'+n+'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">—</span></div>';
+    return '<div class="tag">'+(n || '')+'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+(n || '').replace(/'/g,"\\'")+'\')">—</span></div>';
   }).join('');
 }
 function esRemoveEffectCard(i,name) {
@@ -1846,7 +1847,7 @@ function esRemoveEffectCard(i,name) {
   eAbilities[i].effectCardList=eAbilities[i].effectCardList.filter(function(n){return n!==name;});
   var tags=document.getElementById('eecTags-'+i);
   if(tags) tags.innerHTML=eAbilities[i].effectCardList.map(function(n){
-    return '<div class="tag">'+n+'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+n.replace(/'/g,"\\'")+'\')">—</span></div>';
+    return '<div class="tag">'+(n || '')+'<span class="tag-x" onclick="esRemoveEffectCard('+i+',\''+(n || '').replace(/'/g,"\\'")+'\')">—</span></div>';
   }).join('');
 }
 function refreshEsHeader(i) {
