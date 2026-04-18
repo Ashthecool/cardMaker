@@ -728,7 +728,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; appear
     </span>
     <!-- <a class="mode-btn" href="review.html" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fbbf24;">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      Review
+      Review Queue
     </a> -->
   </div>
 
@@ -1029,6 +1029,7 @@ const EFFECTS=[
   {type:'triggerDialogue',     name:'Trigger Dialogue',       desc:'Asks for: a free-text Dialogue Text input.', needsDialog:true},
   {type:'summonRandom',        name:'Summon Random',           desc:'Summons a random card from a user-defined list of cards.', needsCardList:true},
   {type:'damageEnemyNexus',    name:'Damage Enemy Nexus',      desc:'Deals the value as damage to the enemy Nexus.', needsValue:true},
+  {type:'atkUpAllAllies',      name:'Increases ATK for All Allies', desc:'Increases the ATK of all allies by the value.', needsValue:true},
 ];
 
 const TRIGGERS=[
@@ -1073,16 +1074,77 @@ async function fetchPending() {
   } catch(e) { return []; }
 }
 
+// Fixed pushing live library (for deletes)
+async function pushCardsToLibrary(cardsArray) {
+  const res = await fetch(
+    SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + CARDS_JSON_PATH,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'x-upsert': 'true'
+      },
+      body: JSON.stringify(cardsArray, null, 2)
+    }
+  );
+  if (!res.ok) throw new Error('Could not update live library.');
+}
+
+// Fixed logic for queuing a single edit
+async function submitPending(updatedCard) {
+  let pending = [];
+  try {
+    const r = await fetch(SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/pending_cards.json?t=' + Date.now());
+    if(r.ok) pending = await r.json();
+  } catch(e) {}
+
+  // Remove existing pending edit for this exact card to prevent duplicates in the queue
+  pending = pending.filter(c => c.name !== updatedCard.name);
+  pending.push(updatedCard);
+
+  const res = await fetch(
+    SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/pending_cards.json',
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'x-upsert': 'true'
+      },
+      body: JSON.stringify(pending, null, 2)
+    }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Could not submit edit for approval: ' + err);
+  }
+}
+
+// Helper to check if a pending card is new or changed compared to cards.json
+function isCardNewOrChanged(pendingCard) {
+  var existing = allCards.find(c => c.name === pendingCard.name);
+  if (!existing) return true; // new card
+  // Compare relevant fields (exclude image if not set)
+  var fields = ['series', 'rarity', 'ability', 'atk', 'hp', 'cost', 'description', 'abilities'];
+  for (var f of fields) {
+    if (JSON.stringify(existing[f]) !== JSON.stringify(pendingCard[f])) return true;
+  }
+  return false; // unchanged
+}
+
 function renderPendingGrid() {
   var grid = document.getElementById('pendingGrid');
   var section = document.getElementById('pendingSection');
   grid.innerHTML = '';
-  if (!pendingCards || pendingCards.length === 0) {
+  // Filter to only new or changed cards
+  var filteredPending = pendingCards.filter(isCardNewOrChanged);
+  if (!filteredPending || filteredPending.length === 0) {
     section.style.display = 'none';
     return;
   }
   section.style.display = 'block';
-  pendingCards.forEach(function(card, i) {
+  filteredPending.forEach(function(card, i) {
     var col = RCOLS[card.rarity] || '#6366f1';
     var item = document.createElement('div');
     item.className = 'card-item pending-item';
@@ -1110,35 +1172,6 @@ function renderPendingGrid() {
       '</div>';
     grid.appendChild(item);
   });
-}
-
-async function pushCards(updatedCard) {
-  // We fetch pending_cards.json
-  let pending = [];
-  try {
-    const r = await fetch(SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/pending_cards.json?t=' + Date.now());
-    if(r.ok) pending = await r.json();
-  } catch(e) {}
-
-  // Add the edited card to the queue
-  pending.push(updatedCard);
-
-  // Use the Anon Key to upload
-  const res = await fetch(
-    SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/pending_cards.json',
-    {
-      method: 'PUT',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
-        'Content-Type': 'application/json',
-        'x-upsert': 'true'
-      },
-      body: JSON.stringify(pending, null, 2)
-    }
-  );
-
-  if (!res.ok) throw new Error('Could not submit edit for approval.');
 }
 
 async function uploadImage(file, cardName) {
@@ -1901,7 +1934,7 @@ async function saveCard() {
   if(!name){
     ss.style.display='block';ss.className='save-status err';ss.textContent='Card name is required.';return;
   }
-  ss.style.display='block';ss.className='save-status loading';ss.textContent='Saving…';
+  ss.style.display='block';ss.className='save-status loading';ss.textContent='Submitting to queue…';
 
   try {
     // Upload image if pending
@@ -1932,22 +1965,14 @@ async function saveCard() {
       updated.abilities = abMap;
     }
 
-    // Fetch latest, replace or add by name
-    var cards = await fetchCards();
-    var idx = cards.findIndex(function(c){ return c.name === editCard.name; });
-    if (idx >= 0) cards[idx] = updated;
-    else cards.push(updated);
+    // Submit cleanly to the pending queue
+    await submitPending(updated);
 
-    await pushCards(cards);
+    // Fetch and re-render the pending grid so you see your changes
+    pendingCards = await fetchPending();
+    renderPendingGrid();
 
-    // Update local
-    allCards = cards;
-    var gridIdx = allCards.findIndex(function(c){ return c.name === updated.name; });
-    editCard = updated;
-    editIndex = gridIdx;
-
-    ss.className='save-status ok';ss.textContent='Saved successfully!';
-    applyFilters();
+    ss.className='save-status ok';ss.textContent='Edit submitted for review!';
 
     setTimeout(function(){ closeModal(); }, 1200);
 
@@ -1968,7 +1993,8 @@ async function deleteCard() {
   try {
     var cards = await fetchCards();
     cards = cards.filter(function(c){ return c.name !== name; });
-    await pushCards(cards);
+    await pushCardsToLibrary(cards); // Safely push ONLY to the live cards array
+    
     allCards = cards;
     ss.className='save-status ok';ss.textContent='Deleted.';
     applyFilters();

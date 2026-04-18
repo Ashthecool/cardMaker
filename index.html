@@ -417,7 +417,7 @@ input::-webkit-calendar-picker-indicator {
     </a>
     <!-- <a class="mode-btn" href="review.html" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#fbbf24;">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      Review
+      Review Queue
     </a> -->
 </div>
 
@@ -437,7 +437,7 @@ input::-webkit-calendar-picker-indicator {
 <div class="main-area">
 <div>
 
-<!-- ”€ STEP 1 ”€ -->
+<!-- STEP 1 -->
 <div class="step-panel active" id="step-0">
     <div class="step-title">Who is this card?</div>
     <div class="step-sub">Name, series, rarity, and keyword ability.</div>
@@ -526,7 +526,7 @@ input::-webkit-calendar-picker-indicator {
     <div class="nav-row"><span></span><button class="btn btn-primary" onclick="goTo(1)">Next</button></div>
 </div>
 
-<!-- ”€ STEP 2 ”€ -->
+<!-- STEP 2 -->
 <div class="step-panel" id="step-1">
     <div class="step-title">Set the Numbers</div>
     <div class="step-sub">Attack, Health, and Mana cost.</div>
@@ -547,7 +547,7 @@ input::-webkit-calendar-picker-indicator {
     <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(0)">Back</button><button class="btn btn-primary" onclick="goTo(2)">Next</button></div>
 </div>
 
-<!-- ”€ STEP 3 ”€ -->
+<!-- STEP 3 -->
 <div class="step-panel" id="step-2">
     <div class="step-title">Describe the Card</div>
     <div class="step-sub">Flavour and effect text shown on the card.</div>
@@ -612,7 +612,7 @@ input::-webkit-calendar-picker-indicator {
     <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(1)">Back</button><button class="btn btn-primary" onclick="goTo(3)">Next</button></div>
 </div>
 
-<!-- STEP 4: Ability -->
+<!-- STEP 4 -->
 <div class="step-panel" id="step-3">
     <div class="step-title">
         Active Ability
@@ -644,15 +644,15 @@ input::-webkit-calendar-picker-indicator {
         <!-- Dynamic ability slots rendered here -->
         <div id="aeSlots" style="display:flex;flex-direction:column;gap:16px;"></div>
 
-    </div><!-- /aeBody -->
+    </div>
 
     <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(2)">Back</button><button class="btn btn-primary" onclick="goTo(4)">Review</button></div>
 </div>
 
-<!-- ”€ STEP 5 ”€ -->
+<!-- STEP 5 -->
 <div class="step-panel" id="step-4">
     <div class="step-title">Build Your Batch</div>
-    <div class="step-sub">Queue up as many cards as you want, then save or download them together.</div>
+    <div class="step-sub">Queue up as many cards as you want, then submit them for Review together.</div>
     <pre class="json-block" id="jsonOut"></pre>
     <div class="batch-panel">
         <div class="batch-head">
@@ -670,7 +670,7 @@ input::-webkit-calendar-picker-indicator {
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="openPasteModal()" title="Paste a card JSON from clipboard to load it into the editor" style="font-size:12px">📋 Paste JSON</button>
         <button class="btn btn-secondary" onclick="seedCardsJson()" title="Upload your local cards.json file to Supabase once to get started" style="font-size:12px">⬆ Seed cards.json</button>
-        <button class="btn btn-success" onclick="saveCard()">Save to Supabase</button>
+        <button class="btn btn-success" onclick="saveCard()">Submit for Review</button>
       </div>
     </div>
     <div id="seedStatus" style="display:none;margin-top:8px"></div>
@@ -734,6 +734,8 @@ function goTo(n) {
 const SUPABASE_URL    = 'https://djknvuaivmtudiecwztx.supabase.co';
 const SUPABASE_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqa252dWFpdm10dWRpZWN3enR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMDI1OTQsImV4cCI6MjA5MTY3ODU5NH0.eqaERtPNzDbOW7ZTJdQ793oPtw8jNm665MTAmZYjYd4';
 const SUPABASE_BUCKET = 'card-images';
+const CARDS_JSON_PATH = 'cards.json';
+const PENDING_JSON_PATH = 'pending_cards.json';
 
 async function uploadImageToSupabase(file, cardName) {
     const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
@@ -961,21 +963,20 @@ function updateDatalist() {
 window.addEventListener('DOMContentLoaded', function() {
   refreshSuggestions();
   
-  // Check for template-created ability in sessionStorage
   if (sessionStorage.getItem('newAbility')) {
     try {
       const newAb = JSON.parse(sessionStorage.getItem('newAbility'));
       S.abilities.push(newAb);
       sessionStorage.removeItem('newAbility');
       syncFormFromState();
-      goTo(3); // Navigate to abilities step
+      goTo(3); 
     } catch (e) {
       console.error('Failed to load template ability:', e);
     }
   }
 });
 
-/* ”€ Effect catalogue ”€ */
+/* Effect catalogue */
 const EFFECTS=[
   {type:'healAllies',          name:'Heal Allies',              desc:'Heals every friendly unit on the board by the value.'},
   {type:'healNexus',           name:'Heal Nexus',               desc:'Restores the value to your Nexus (player HP).'},
@@ -1053,7 +1054,6 @@ function makeDefaultState(){
 }
 const S=makeDefaultState();
 let batchCards=[];
-
 
 /* Slot UI helpers */
 function maxAbilitySlots(){ return RARITY_SLOTS[S.rarity]||1; }
@@ -1488,8 +1488,6 @@ function refreshSlotHeader(i){
   badge.textContent=trigLabel+' \u2192 '+effLabel;
 }
 
-
-
 /* Generic pill picker (rarity / keyword ability only) */
 function pick(el,key,gid){
   document.querySelectorAll('#'+gid+' .pill').forEach(function(p){p.classList.remove('sel');});
@@ -1544,7 +1542,7 @@ function sync(){
   updateCard();
 }
 
-/* ”€ Card preview ”€ */
+/* Card preview */
 function applyRarity(){
   const col=RCOLS[S.rarity]||'#64748b';
   const card=document.getElementById('cardEl');
@@ -1579,7 +1577,7 @@ function updateCard(){
   }
 }
 
-/* ”€ Description renderer ”€ */
+/* Description renderer */
 function renderDesc(text){
   return text.split('\\n').map(line=>{
     if(line.trim()==='---') return '<div style="width:100%;height:1px;background:rgba(167,139,250,.3);margin:3px 0"></div>';
@@ -1603,7 +1601,7 @@ function parseLine(t){
   return t;
 }
 
-/* ”€ JSON build ”€ */
+/* JSON build */
 function buildAbilityEffect(ab){
   var ef={type:ab.effectType};
   var info=EFFECTS.find(function(e){return e.type===ab.effectType;})||{};
@@ -1762,10 +1760,7 @@ async function queueCurrentCard(){
   goTo(0);
 }
 
-/* ”€ Save ”€ */
-// ── Supabase cards.json helpers ───────────────────────────────────────────
-
-const CARDS_JSON_PATH = 'cards.json';
+// ── Supabase save to Pending Queue ───────────────────────────────────────────
 
 async function fetchCardsFromSupabase() {
   const url = SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + CARDS_JSON_PATH;
@@ -1793,6 +1788,35 @@ async function pushCardsToSupabase(cards) {
   }
 }
 
+async function fetchPendingFromSupabase() {
+  const url = SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + PENDING_JSON_PATH;
+  const res = await fetch(url + '?t=' + Date.now());
+  if (!res.ok) {
+    if(res.status === 404) return [];
+    return [];
+  }
+  return await res.json();
+}
+
+async function pushPendingToSupabase(cards) {
+  const res = await fetch(
+    SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + PENDING_JSON_PATH,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'x-upsert': 'true'
+      },
+      body: JSON.stringify(cards, null, 2)
+    }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Could not save pending_cards.json: ' + err);
+  }
+}
+
 async function saveCard(){
   const statusEl = document.getElementById('saveStatus');
 
@@ -1808,31 +1832,28 @@ async function saveCard(){
   if(hasMeaningfulDraft() && S.name.trim()) exportCards = upsertCard(exportCards, buildCard());
   if(exportCards.length === 0){
     statusEl.style.display='';statusEl.className='status-msg status-warn';
-    statusEl.textContent='Queue a card or finish the current draft before saving.';
+    statusEl.textContent='Queue a card or finish the current draft before submitting.';
     return;
   }
 
-  statusEl.style.display='';statusEl.className='status-msg';statusEl.textContent='Saving to Supabase...';
+  statusEl.style.display='';statusEl.className='status-msg';statusEl.textContent='Submitting to review queue...';
 
   try {
-    // 3. Fetch current cards.json from Supabase and merge
-    const existing = await fetchCardsFromSupabase();
+    // 3. Fetch current pending_cards.json from Supabase and merge
+    const existingPending = await fetchPendingFromSupabase();
     let added = 0, updated = 0;
     for(const newCard of exportCards){
-      const idx = existing.findIndex(c => c.name === newCard.name);
-      if(idx >= 0){ existing[idx] = newCard; updated++; }
-      else { existing.push(newCard); added++; }
+      const idx = existingPending.findIndex(c => c.name === newCard.name);
+      if(idx >= 0){ existingPending[idx] = newCard; updated++; }
+      else { existingPending.push(newCard); added++; }
     }
 
-    // 4. Push merged file back to Supabase
-    await pushCardsToSupabase(existing);
-
-    // 5. Also refresh the local suggestions cache
-    existingCards = existing;
+    // 4. Push merged file back to Supabase pending queue
+    await pushPendingToSupabase(existingPending);
 
     statusEl.className='status-msg status-ok';
     const n = exportCards.length;
-    statusEl.textContent = 'Saved to Supabase! ' + n + ' card' + (n===1?'':'s') + ' (' + added + ' added, ' + updated + ' updated).';
+    statusEl.textContent = 'Submitted! ' + n + ' card' + (n===1?'':'s') + ' queued for the admin.';
 
     // Reset batch + draft after a successful save
     batchCards = [];
@@ -1842,10 +1863,10 @@ async function saveCard(){
 
   } catch(e) {
     statusEl.className='status-msg status-err';
-    statusEl.textContent='Save failed: ' + e.message;
+    statusEl.textContent='Submission failed: ' + e.message;
   }
 }
-// ── Seed cards.json to Supabase (one-time initial upload) ─────────────────
+
 function seedCardsJson() {
   document.getElementById('seedFileInput').click();
 }
@@ -1875,7 +1896,6 @@ async function handleSeedFile(file) {
     existingCards = cards;
     statusEl.className = 'status-msg status-ok';
     statusEl.textContent = 'Seeded! ' + cards.length + ' cards are now live on Supabase.';
-    // Reset file input so you can re-seed if needed
     document.getElementById('seedFileInput').value = '';
   } catch(e) {
     statusEl.className = 'status-msg status-err';
@@ -2000,7 +2020,6 @@ function applyCardToState(card){
   }
   syncFormFromState();
   goTo(0);
-  // Show a status message
   var statusEl=document.getElementById('saveStatus');
   statusEl.style.display='';
   statusEl.className='status-msg status-ok';
