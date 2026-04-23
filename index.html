@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -587,6 +587,19 @@ input::-webkit-calendar-picker-indicator {
             <div class="chip" onclick="ins('_12px_text_')">Aa Size</div>
             <div class="chip" onclick="ins('\\n')">New line</div>
             <div class="chip" onclick="ins(' --- ')">Divider</div>
+            <div class="chip" onclick="ins('[glitch]text[/glitch]')">Glitch</div>
+            <div class="chip" onclick="ins('[fire]text[/fire]')">Fire</div>
+            <div class="chip" onclick="ins('[ice]text[/ice]')">Ice</div>
+            <div class="chip" onclick="ins('[shadow]text[/shadow]')">Shadow</div>
+            <div class="chip" onclick="ins('[gold]text[/gold]')">Gold</div>
+            <div class="chip" onclick="ins('[electric]text[/electric]')">Electric</div>
+            <div class="chip" onclick="ins('[type]text[/type]')">Typewriter</div>
+            <div class="chip" onclick="ins('[spin]text[/spin]')">Spin</div>
+            <div class="chip" onclick="ins('[corrupt]text[/corrupt]')">Corrupt</div>
+            <div class="chip" onclick="ins('[neon]text[/neon]')">Neon</div>
+            <div class="chip" onclick="ins('[wave]text[/wave]')">Wave</div>
+            <div class="chip" onclick="ins('[void]text[/void]')">Void</div>
+            <div class="chip" onclick="ins('[blood]text[/blood]')">Blood</div>
         </div>
     </div>
 
@@ -1586,6 +1599,203 @@ function renderDesc(text){
 }
 function parseLine(t){
   if(!t) return '';
+
+  // Inject shared keyframes + classes once per page
+  if (!document.getElementById('desc-fx-styles')) {
+      const style = document.createElement('style');
+      style.id = 'desc-fx-styles';
+      style.textContent = `
+          /* ── GLITCH ── */
+          @keyframes desc-glitch-anim {
+              0%,100%{clip-path:inset(50% 0 30% 0);transform:translate(-3px,0) skewX(-1deg)}
+              20%{clip-path:inset(10% 0 60% 0);transform:translate(3px,0) skewX(2deg)}
+              40%{clip-path:inset(80% 0 5% 0);transform:translate(-2px,0)}
+              60%{clip-path:inset(30% 0 40% 0);transform:translate(2px,1px)}
+              80%{clip-path:inset(5% 0 80% 0);transform:translate(0,-1px)}
+          }
+          .desc-glitch {
+              position: relative;
+              color: #e2e8f0;
+              text-shadow: 0 0 4px #a78bfa;
+          }
+          .desc-glitch::before,
+          .desc-glitch::after {
+              content: attr(data-text);
+              position: absolute;
+              left: 0; top: 0;
+              width: 100%; height: 100%;
+              pointer-events: none;
+          }
+          .desc-glitch::before {
+              color: #f87171;
+              animation: desc-glitch-anim 2.5s infinite steps(1);
+              opacity: 0.8;
+          }
+          .desc-glitch::after {
+              color: #67e8f9;
+              animation: desc-glitch-anim 2.5s infinite steps(1) reverse;
+              opacity: 0.7;
+          }
+
+          /* ── FIRE ── */
+          @keyframes desc-fire-shift {
+              0%{background-position:0% 100%}
+              50%{background-position:100% 0%}
+              100%{background-position:0% 100%}
+          }
+          .desc-fire {
+              background: linear-gradient(to top, #fbbf24, #f97316, #ef4444, #fde68a, #f97316);
+              background-size: 200% 300%;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-fire-shift 1.4s ease infinite;
+              text-shadow: none;
+              filter: drop-shadow(0 0 6px #f9731688);
+          }
+
+          /* ── ICE ── */
+          @keyframes desc-ice-shimmer {
+              0%{background-position:200% center}
+              100%{background-position:-200% center}
+          }
+          .desc-ice {
+              background: linear-gradient(90deg, #bfdbfe, #e0f2fe, #ffffff, #93c5fd, #bfdbfe);
+              background-size: 300% auto;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-ice-shimmer 2.5s linear infinite;
+              filter: drop-shadow(0 0 5px #7dd3fc88);
+          }
+
+          /* ── SHADOW ── */
+          @keyframes desc-shadow-pulse {
+              0%,100%{text-shadow:0 0 8px #7c3aed,0 0 20px #4c1d95,0 0 40px #1e1b4b}
+              50%{text-shadow:0 0 4px #6d28d9,0 0 10px #2e1065}
+          }
+          .desc-shadow {
+              color: #c4b5fd;
+              animation: desc-shadow-pulse 2s ease-in-out infinite;
+          }
+
+          /* ── GOLD ── */
+          @keyframes desc-gold-shimmer {
+              0%{background-position:200% center}
+              100%{background-position:-200% center}
+          }
+          .desc-gold {
+              background: linear-gradient(90deg, #78350f, #fbbf24, #fef3c7, #f59e0b, #d97706, #fef3c7, #fbbf24);
+              background-size: 300% auto;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-gold-shimmer 2s linear infinite;
+              filter: drop-shadow(0 0 5px #fbbf2466);
+          }
+
+          /* ── ELECTRIC ── */
+          @keyframes desc-electric-flicker {
+              0%,100%{opacity:1;text-shadow:0 0 6px #fef08a,0 0 14px #facc15,0 0 28px #eab308}
+              15%{opacity:0.7;text-shadow:0 0 2px #fef9c3}
+              30%{opacity:1;text-shadow:0 0 8px #fef08a,0 0 20px #facc15}
+              50%{opacity:0.85;text-shadow:0 0 4px #fef08a}
+              70%{opacity:1;text-shadow:0 0 10px #fef08a,0 0 22px #eab308}
+              85%{opacity:0.6;text-shadow:none}
+          }
+          .desc-electric {
+              color: #fef08a;
+              animation: desc-electric-flicker 1.2s steps(1) infinite;
+          }
+
+          /* ── TYPEWRITER ── */
+          @keyframes desc-typechar-reveal {
+              from{opacity:0;transform:translateY(-4px)}
+              to{opacity:1;transform:translateY(0)}
+          }
+          .desc-typewriter { display: inline; }
+          .desc-typechar {
+              opacity: 0;
+              display: inline-block;
+              animation: desc-typechar-reveal 0.12s ease forwards;
+          }
+
+          /* ── SPIN ── */
+          @keyframes desc-spin-anim {
+              from{transform:rotate(0deg)}
+              to{transform:rotate(360deg)}
+          }
+          .desc-spin {
+              animation: desc-spin-anim 2s linear infinite;
+              display: inline-block;
+          }
+
+          /* ── CORRUPT ── */
+          @keyframes desc-corrupt-anim {
+              0%,100%{transform:skewX(0deg) skewY(0deg);opacity:1;filter:none}
+              10%{transform:skewX(5deg);opacity:0.7;filter:hue-rotate(90deg)}
+              20%{transform:skewX(-3deg) skewY(1deg);opacity:1;filter:none}
+              35%{transform:skewX(0deg);filter:hue-rotate(180deg);opacity:0.5}
+              50%{transform:skewX(4deg) skewY(-1deg);opacity:1;filter:none}
+              65%{transform:none;opacity:0.6;filter:hue-rotate(270deg)}
+              80%{transform:skewX(-2deg);opacity:1;filter:none}
+          }
+          .desc-corrupt {
+              color: #f87171;
+              animation: desc-corrupt-anim 3s steps(1) infinite;
+              display: inline-block;
+          }
+
+          /* ── NEON ── */
+          @keyframes desc-neon-pulse {
+              0%,100%{text-shadow:0 0 4px #f0abfc,0 0 10px #e879f9,0 0 20px #a21caf,0 0 40px #86198f}
+              50%{text-shadow:0 0 2px #f0abfc,0 0 6px #e879f9,0 0 12px #a21caf}
+          }
+          .desc-neon {
+              color: #f0abfc;
+              animation: desc-neon-pulse 1.8s ease-in-out infinite;
+          }
+
+          /* ── WAVE ── */
+          @keyframes desc-wave-bob {
+              0%,100%{transform:translateY(0)}
+              50%{transform:translateY(-5px)}
+          }
+          .desc-wavechar {
+              animation: desc-wave-bob 0.8s ease-in-out infinite;
+              color: #a5f3fc;
+          }
+
+          /* ── VOID ── */
+          @keyframes desc-void-rotate {
+              0%{background-position:0% 50%}
+              50%{background-position:100% 50%}
+              100%{background-position:0% 50%}
+          }
+          .desc-void {
+              background: linear-gradient(270deg, #1e1b4b, #4c1d95, #7c3aed, #312e81, #2e1065, #6d28d9);
+              background-size: 400% 400%;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-void-rotate 4s ease infinite;
+              filter: drop-shadow(0 0 6px #7c3aed88);
+          }
+
+          /* ── BLOOD ── */
+          @keyframes desc-blood-drip {
+              0%,100%{text-shadow:0 0 6px #991b1b,0 2px 8px #7f1d1d;opacity:1}
+              30%{text-shadow:0 4px 12px #dc2626,0 0 4px #991b1b;opacity:0.85}
+              60%{text-shadow:0 1px 4px #7f1d1d;opacity:1}
+          }
+          .desc-blood {
+              color: #fca5a5;
+              animation: desc-blood-drip 2.2s ease-in-out infinite;
+          }
+      `;
+      document.head.appendChild(style);
+  }
+
   t=t.replace(/\{\{hidden\}\}.*?\{\{\/hidden\}\}/g,'');
   t=t.replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g,'<span style="color:#22d3ee;font-weight:700;text-decoration:underline">$1</span>');
   t=t.replace(/£\{(.*?)\}£/g,'<span style="font-style:italic;opacity:.8">$1</span>');
@@ -1597,7 +1807,75 @@ function parseLine(t){
   t=t.replace(/#atk#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#ef4444" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/></svg>');
   t=t.replace(/#hp#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#22c55e" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>');
   t=t.replace(/#cost#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#818cf8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>');
-  t=t.replace(/\[(?:flat|stretch)[^\]]*\](.*?)\[\/(?:flat|stretch)\]/g,'$1');
+
+  // [flat*N] squishes vertically → scaleY
+  t = t.replace(/\[flat\*(\d+)\](.*?)\[\/flat\]/g, '<span style="display: inline-block; transform: scaleY($1%);">$2</span>');
+
+  // [stretch*N] stretches horizontally → scaleX
+  t = t.replace(/\[stretch\*(\d+)\](.*?)\[\/stretch\]/g, '<span style="display: inline-block; transform: scaleX($1%);">$2</span>');
+
+  // 13. Glitch Text: [glitch]Text[/glitch]
+  // Eerie flickering glitch effect with red/cyan pseudo-elements via animation
+  t = t.replace(/\[glitch\](.*?)\[\/glitch\]/g, '<span class="desc-glitch" data-text="$1">$1</span>');
+
+  // 14. Fire Text: [fire]Text[/fire]
+  // Animated gradient cycling through fire colours bottom-to-top
+  t = t.replace(/\[fire\](.*?)\[\/fire\]/g, '<span class="desc-fire font-black">$1</span>');
+
+  // 15. Ice Text: [ice]Text[/ice]
+  // Cool shimmer sweep across a blue/white gradient
+  t = t.replace(/\[ice\](.*?)\[\/ice\]/g, '<span class="desc-ice font-bold">$1</span>');
+
+  // 16. Shadow Text: [shadow]Text[/shadow]
+  // Deep pulsing dark aura glow
+  t = t.replace(/\[shadow\](.*?)\[\/shadow\]/g, '<span class="desc-shadow font-bold">$1</span>');
+
+  // 17. Gold/Legendary Text: [gold]Text[/gold]
+  // Shimmer sweep across rich gold gradient
+  t = t.replace(/\[gold\](.*?)\[\/gold\]/g, '<span class="desc-gold font-black">$1</span>');
+
+  // 18. Electric Text: [electric]Text[/electric]
+  // Rapid flickering + yellow-white glow simulating electricity
+  t = t.replace(/\[electric\](.*?)\[\/electric\]/g, '<span class="desc-electric font-bold">$1</span>');
+
+  // 19. Typewriter Text: [type]Text[/type]
+  // Characters appear one by one using character reveal animation
+  t = t.replace(/\[type\](.*?)\[\/type\]/g, (_, inner) => {
+      const chars = [...inner].map((ch, i) =>
+          `<span class="desc-typechar" style="animation-delay:${i * 60}ms">${ch === ' ' ? '&nbsp;' : ch}</span>`
+      ).join('');
+      return `<span class="desc-typewriter">${chars}</span>`;
+  });
+
+  // 20. Spin Text: [spin]Text[/spin]
+  // Continuously rotates 360° (good for ⚙ icons or single words)
+  t = t.replace(/\[spin\](.*?)\[\/spin\]/g, '<span class="desc-spin inline-block">$1</span>');
+
+  // 21. Corrupt Text: [corrupt]Text[/corrupt]
+  // Randomly swaps characters to look corrupted/glitched (CSS only approximation: flicker + skew)
+  t = t.replace(/\[corrupt\](.*?)\[\/corrupt\]/g, '<span class="desc-corrupt font-mono font-black">$1</span>');
+
+  // 22. Neon Text: [neon]Text[/neon]
+  // Bright neon pink/magenta pulsing glow
+  t = t.replace(/\[neon\](.*?)\[\/neon\]/g, '<span class="desc-neon font-black">$1</span>');
+
+  // 23. Wave Text: [wave]Text[/wave]
+  // Each character bobs up and down in a sine wave
+  t = t.replace(/\[wave\](.*?)\[\/wave\]/g, (_, inner) => {
+      const chars = [...inner].map((ch, i) =>
+          `<span class="desc-wavechar inline-block" style="animation-delay:${i * 80}ms">${ch === ' ' ? '&nbsp;' : ch}</span>`
+      ).join('');
+      return `<span>${chars}</span>`;
+  });
+
+  // 24. Void Text: [void]Text[/void]
+  // Dark purple swirling gradient with slow spin — feels ancient/cosmic
+  t = t.replace(/\[void\](.*?)\[\/void\]/g, '<span class="desc-void font-black">$1</span>');
+
+  // 25. Blood Text: [blood]Text[/blood]
+  // Dark crimson with drip-flicker animation
+  t = t.replace(/\[blood\](.*?)\[\/blood\]/g, '<span class="desc-blood font-black">$1</span>');
+
   return t;
 }
 
