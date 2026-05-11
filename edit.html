@@ -897,10 +897,31 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; appear
         <textarea id="e-desc" rows="4" placeholder="Card description…"></textarea>
       </div>
 
-      <div class="divider"></div>
+       <div class="divider"></div>
 
-      <!-- Ability Engine -->
-      <div class="section-label">Ability Engine</div>
+       <!-- Speech Bubbles -->
+       <div class="section-label">Speech Bubbles</div>
+       <div class="field">
+         <div class="lbl">On Spawn (Draw)</div>
+         <textarea id="e-speech-draw" rows="2" placeholder="e.g. Summoned from the flame!&#10;Ready to burn." oninput="syncSpeech()"></textarea>
+       </div>
+       <div class="field">
+         <div class="lbl">On Play</div>
+         <textarea id="e-speech-play" rows="2" placeholder="e.g. Taking my position.&#10;The field is mine." oninput="syncSpeech()"></textarea>
+       </div>
+       <div class="field">
+         <div class="lbl">On Attack</div>
+         <textarea id="e-speech-attack" rows="2" placeholder="e.g. Burn!&#10;Feel the heat!&#10;No mercy!" oninput="syncSpeech()"></textarea>
+       </div>
+       <div class="field">
+         <div class="lbl">When Attacked</div>
+         <textarea id="e-speech-attacked" rows="2" placeholder="e.g. Is that all?&#10;I felt that...&#10;You'll pay for that." oninput="syncSpeech()"></textarea>
+       </div>
+
+       <div class="divider"></div>
+
+       <!-- Ability Engine -->
+       <div class="section-label">Ability Engine</div>
       <div class="slot-info-bar">
         <span class="slot-info-label" id="eSlotLabel">Slots: 0 / 1</span>
         <button class="add-ability-btn" id="eAddAbilBtn" onclick="eAddSlot()">+ Add Ability</button>
@@ -1053,6 +1074,7 @@ let pendingImgFile = null;
 let uploadedImgUrl = '';
 
 const eStats = {atk:1, hp:1, cost:1};
+const eSpeech = {draw:[], play:[], attack:[], attacked:[]};
 const eAbilities = [];
 let eRarityVal = 'COMMON';
 let eAbilityVal = 'none';
@@ -1126,7 +1148,7 @@ function isCardNewOrChanged(pendingCard) {
   var existing = allCards.find(c => c.name === pendingCard.name);
   if (!existing) return true; // new card
   // Compare relevant fields (exclude image if not set)
-  var fields = ['series', 'rarity', 'ability', 'atk', 'hp', 'cost', 'description', 'abilities'];
+  var fields = ['series', 'rarity', 'ability', 'atk', 'hp', 'cost', 'description', 'speech', 'abilities'];
   for (var f of fields) {
     if (JSON.stringify(existing[f]) !== JSON.stringify(pendingCard[f])) return true;
   }
@@ -1404,10 +1426,20 @@ function openEdit(idx) {
   pendingImgFile = null;
   uploadedImgUrl = '';
 
-  // Populate fields
-  document.getElementById('e-name').value = editCard.name || '';
-  document.getElementById('e-series').value = editCard.series || '';
-  document.getElementById('e-desc').value = editCard.description || '';
+   // Populate fields
+   document.getElementById('e-name').value = editCard.name || '';
+   document.getElementById('e-series').value = editCard.series || '';
+   document.getElementById('e-desc').value = editCard.description || '';
+
+   // Speech
+   eSpeech.draw     = (editCard.speech && editCard.speech.draw)     || [];
+   eSpeech.play     = (editCard.speech && editCard.speech.play)     || [];
+   eSpeech.attack   = (editCard.speech && editCard.speech.attack)   || [];
+   eSpeech.attacked = (editCard.speech && editCard.speech.attacked) || [];
+   document.getElementById('e-speech-draw').value     = eSpeech.draw.join('\n');
+   document.getElementById('e-speech-play').value     = eSpeech.play.join('\n');
+   document.getElementById('e-speech-attack').value   = eSpeech.attack.join('\n');
+   document.getElementById('e-speech-attacked').value = eSpeech.attacked.join('\n');
 
   eStats.atk = editCard.atk || 1;
   eStats.hp  = editCard.hp  || 1;
@@ -1498,6 +1530,14 @@ function handleBackdropClick(e) {
 function eadj(k, d) {
   eStats[k] = Math.max(0, Math.min(99, eStats[k] + d));
   document.getElementById('e-' + k).textContent = eStats[k];
+}
+
+/* ── Sync speech ── */
+function syncSpeech() {
+  eSpeech.draw     = document.getElementById('e-speech-draw').value.split('\n').map(s=>s.trim()).filter(s=>s);
+  eSpeech.play     = document.getElementById('e-speech-play').value.split('\n').map(s=>s.trim()).filter(s=>s);
+  eSpeech.attack   = document.getElementById('e-speech-attack').value.split('\n').map(s=>s.trim()).filter(s=>s);
+  eSpeech.attacked = document.getElementById('e-speech-attacked').value.split('\n').map(s=>s.trim()).filter(s=>s);
 }
 
 /* ── Generic pill picker ── */
@@ -1956,6 +1996,8 @@ async function saveCard() {
       description: document.getElementById('e-desc').value,
     };
     if (imgUrl) updated.image = imgUrl;
+    var hasSpeech = Object.values(eSpeech).some(arr => arr.length > 0);
+    if (hasSpeech) updated.speech = eSpeech;
     if (eAbilities.length > 0) {
       var abMap = {};
       eAbilities.forEach(function(ab) {

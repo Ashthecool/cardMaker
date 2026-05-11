@@ -429,9 +429,11 @@ input::-webkit-calendar-picker-indicator {
     <div class="step-conn"></div>
     <div class="step-pill" onclick="goTo(2)" id="pill-2"><span class="n">3</span>Description</div>
     <div class="step-conn"></div>
-    <div class="step-pill" onclick="goTo(3)" id="pill-3"><span class="n">4</span>Ability</div>
+    <div class="step-pill" onclick="goTo(3)" id="pill-3"><span class="n">4</span>Speech</div>
     <div class="step-conn"></div>
-    <div class="step-pill" onclick="goTo(4)" id="pill-4"><span class="n">5</span>Save</div>
+    <div class="step-pill" onclick="goTo(4)" id="pill-4"><span class="n">5</span>Ability</div>
+    <div class="step-conn"></div>
+    <div class="step-pill" onclick="goTo(5)" id="pill-5"><span class="n">6</span>Save</div>
 </div>
 
 <div class="main-area">
@@ -627,6 +629,31 @@ input::-webkit-calendar-picker-indicator {
 
 <!-- STEP 4 -->
 <div class="step-panel" id="step-3">
+    <div class="step-title">Speech Bubbles</div>
+    <div class="step-sub">Optional: add voice lines for this card's actions.</div>
+
+    <div class="field">
+        <div class="lbl">On Spawn (Draw)</div>
+        <textarea id="speech-draw" placeholder="e.g. Summoned from the flame!&#10;Ready to burn." oninput="syncSpeech()" rows="3"></textarea>
+    </div>
+    <div class="field">
+        <div class="lbl">On Play</div>
+        <textarea id="speech-play" placeholder="e.g. Taking my position.&#10;The field is mine." oninput="syncSpeech()" rows="3"></textarea>
+    </div>
+    <div class="field">
+        <div class="lbl">On Attack</div>
+        <textarea id="speech-attack" placeholder="e.g. Burn!&#10;Feel the heat!&#10;No mercy!" oninput="syncSpeech()" rows="3"></textarea>
+    </div>
+    <div class="field">
+        <div class="lbl">When Attacked</div>
+        <textarea id="speech-attacked" placeholder="e.g. Is that all?&#10;I felt that...&#10;You'll pay for that." oninput="syncSpeech()" rows="3"></textarea>
+    </div>
+
+    <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(2)">Back</button><button class="btn btn-primary" onclick="goTo(4)">Next</button></div>
+</div>
+
+<!-- STEP 5 -->
+<div class="step-panel" id="step-4">
     <div class="step-title">
         Active Ability
         <span class="tip-wrap">
@@ -659,11 +686,11 @@ input::-webkit-calendar-picker-indicator {
 
     </div>
 
-    <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(2)">Back</button><button class="btn btn-primary" onclick="goTo(4)">Review</button></div>
+    <div class="nav-row"><button class="btn btn-ghost" onclick="goTo(3)">Back</button><button class="btn btn-primary" onclick="goTo(5)">Review</button></div>
 </div>
 
-<!-- STEP 5 -->
-<div class="step-panel" id="step-4">
+<!-- STEP 6 -->
+<div class="step-panel" id="step-5">
     <div class="step-title">Build Your Batch</div>
     <div class="step-sub">Queue up as many cards as you want, then submit them for Review together.</div>
     <pre class="json-block" id="jsonOut"></pre>
@@ -679,7 +706,7 @@ input::-webkit-calendar-picker-indicator {
     </div>
     <div id="saveStatus" style="display:none"></div>
     <div class="nav-row">
-      <button class="btn btn-ghost" onclick="goTo(3)">Back</button>
+      <button class="btn btn-ghost" onclick="goTo(4)">Back</button>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="openPasteModal()" title="Paste a card JSON from clipboard to load it into the editor" style="font-size:12px">📋 Paste JSON</button>
         <button class="btn btn-secondary" onclick="seedCardsJson()" title="Upload your local cards.json file to Supabase once to get started" style="font-size:12px">⬆ Seed cards.json</button>
@@ -736,7 +763,7 @@ function goTo(n) {
   currentStep = n;
   document.getElementById('step-' + n).classList.add('active');
   document.getElementById('pill-' + n).classList.add('active');
-  if (n === 4) renderJSON();
+  if (n === 5) renderJSON();
 }
 </script>
 
@@ -1061,6 +1088,7 @@ function makeDefaultState(){
   return {
     name:'',series:'',rarity:'COMMON',ability:'none',imageUrl:'',
     atk:1,hp:1,cost:1,description:'',
+    speech:{draw:[],play:[],attack:[],attacked:[]},
     aeActive:false,
     abilities:[],
   };
@@ -1555,6 +1583,15 @@ function sync(){
   updateCard();
 }
 
+/* Sync speech fields */
+function syncSpeech(){
+  S.speech.draw     = document.getElementById('speech-draw').value.split('\n').map(s=>s.trim()).filter(s=>s);
+  S.speech.play     = document.getElementById('speech-play').value.split('\n').map(s=>s.trim()).filter(s=>s);
+  S.speech.attack   = document.getElementById('speech-attack').value.split('\n').map(s=>s.trim()).filter(s=>s);
+  S.speech.attacked = document.getElementById('speech-attacked').value.split('\n').map(s=>s.trim()).filter(s=>s);
+  updateCard();
+}
+
 /* Card preview */
 function applyRarity(){
   const col=RCOLS[S.rarity]||'#64748b';
@@ -1930,6 +1967,8 @@ function buildCard(){
     series:S.series||'Original',description:S.description
   };
   if(S.imageUrl) out.image=S.imageUrl;
+  var hasSpeech = Object.values(S.speech).some(arr => arr.length > 0);
+  if(hasSpeech) out.speech = S.speech;
   if(S.aeActive && S.abilities.length>0){
     var abilitiesMap={};
     S.abilities.forEach(function(ab){
@@ -1947,6 +1986,7 @@ function hasMeaningfulDraft(){
     S.name.trim() ||
     S.series.trim() ||
     S.description.trim() ||
+    Object.values(S.speech).some(arr => arr.length > 0) ||
     S.atk!==1 || S.hp!==1 || S.cost!==1 ||
     S.rarity!=='COMMON' || S.ability!=='none' ||
     S.aeActive
@@ -1996,6 +2036,10 @@ function syncFormFromState(){
   document.getElementById('f-name').value=S.name;
   document.getElementById('f-series').value=S.series;
   document.getElementById('f-desc').value=S.description;
+  document.getElementById('speech-draw').value=S.speech.draw.join('\n');
+  document.getElementById('speech-play').value=S.speech.play.join('\n');
+  document.getElementById('speech-attack').value=S.speech.attack.join('\n');
+  document.getElementById('speech-attacked').value=S.speech.attacked.join('\n');
   document.getElementById('val-atk').textContent=S.atk;
   document.getElementById('val-hp').textContent=S.hp;
   document.getElementById('val-cost').textContent=S.cost;
