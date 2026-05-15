@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Card Forge</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0c0c0f;
+  --surface: #141417;
+  --surface2: #1c1c21;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --gold: #d4a853;
+  --gold-dim: rgba(212,168,83,0.12);
+  --text: #f0ede8;
+  --text2: #8c8a88;
+  --text3: #3e3d3b;
+  --red: #e05252;
+  --green: #4dbe7e;
+  --purple: #9b7fe8;
+  --radius: 10px;
+  --radius-lg: 16px;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+
+.header { margin-bottom: 2.25rem; }
+.header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.header p { font-size: 0.85rem; color: var(--text2); margin-top: 0.3rem; }
+
+.config {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+.full  { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+.field label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+input[type="text"], input[type="number"] {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.85rem;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+input[type="text"]:focus, input[type="number"]:focus { border-color: var(--gold); }
+.mono { font-family: 'DM Mono', monospace; font-size: 0.8rem; }
+
+.file-zone {
+  background: var(--bg);
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+.file-zone:hover { border-color: rgba(212,168,83,0.45); background: var(--gold-dim); }
+.file-zone input[type="file"] { display: none; }
+.file-icon { color: var(--text2); flex-shrink: 0; }
+.file-label-text strong { display: block; font-size: 0.88rem; font-weight: 600; color: var(--text); }
+.file-label-text span   { font-size: 0.78rem; color: var(--text2); }
+
+.forge-btn {
+  margin-top: 1.25rem;
+  width: 100%;
+  padding: 0.78rem 1rem;
+  background: var(--gold);
+  border: none;
+  border-radius: var(--radius);
+  color: #15100a;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.forge-btn:hover:not(:disabled) { opacity: 0.88; }
+.forge-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+
+.status {
+  font-size: 0.8rem;
+  color: var(--text2);
+  text-align: center;
+  min-height: 1.2em;
+  margin-bottom: 1.75rem;
+  font-style: italic;
+}
+.status.ok  { color: var(--gold); font-style: normal; font-weight: 500; }
+.status.err { color: var(--red);  font-style: normal; }
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card:hover { border-color: var(--border2); transform: translateY(-3px); }
+
+.rarity-bar { height: 2px; }
+
+.card-art {
+  height: 190px;
+  background: var(--surface2);
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.card-art img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
+.art-fade {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(20,20,23,0.97) 0%, rgba(20,20,23,0.15) 52%, transparent 100%);
+}
+.art-cue { font-size: 0.68rem; color: var(--text3); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; z-index: 1; }
+.art-cue svg { display: block; margin: 0 auto 0.45rem; }
+
+.cost {
+  position: absolute; top: 10px; left: 12px; z-index: 2;
+  width: 30px; height: 30px;
+  background: var(--bg);
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.88rem; font-weight: 700;
+  color: var(--gold);
+}
+
+.rarity-pill {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  font-size: 0.57rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.18rem 0.5rem;
+  border-radius: 4px; border: 1px solid;
+}
+
+.name-block {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
+  padding: 0.6rem 1rem 0.55rem;
+}
+.series-tag { font-size: 0.57rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(212,168,83,0.45); }
+.char-name  {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem; font-weight: 700;
+  color: #fff; line-height: 1.15;
+}
+
+.card-body { padding: 1rem; flex: 1; display: flex; flex-direction: column; gap: 0.85rem; }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.stat {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 0.42rem 0.6rem;
+  text-align: center;
+}
+.sl { font-size: 0.57rem; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; }
+.sv { font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-top: 1px; }
+.atk .sl { color: rgba(224,82,82,0.55); } .atk .sv { color: var(--red); }
+.hp  .sl { color: rgba(77,190,126,0.55); } .hp  .sv { color: var(--green); }
+
+.desc {
+  font-size: 0.8rem; line-height: 1.65;
+  color: rgba(240,237,232,0.6);
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  min-height: 68px;
+  border-left: 2px solid rgba(212,168,83,0.15);
+}
+
+.abilities { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.ab {
+  font-size: 0.6rem; font-weight: 600;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  background: rgba(155,127,232,0.09);
+  border: 1px solid rgba(155,127,232,0.2);
+  color: var(--purple);
+  border-radius: 20px;
+  padding: 0.18rem 0.52rem;
+}
+
+.speech {
+  font-size: 0.78rem; color: var(--text2);
+  font-style: italic;
+  border-top: 1px solid var(--border);
+  padding-top: 0.72rem;
+  line-height: 1.55;
+}
+.speech::before { content: '\201C'; color: var(--gold); opacity: 0.5; margin-right: 1px; }
+.speech::after  { content: '\201D'; color: var(--gold); opacity: 0.5; margin-left: 1px; }
+
+.card-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
+.cbtn {
+  padding: 0.42rem;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  color: var(--text2);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.64rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.cbtn:hover { background: var(--gold-dim); color: var(--gold); border-color: rgba(212,168,83,0.28); }
+
+.footer {
+  display: flex; gap: 0.75rem; justify-content: center;
+  margin-top: 2.5rem;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.footer.show { opacity: 1; pointer-events: all; }
+
+.fbtn {
+  padding: 0.58rem 1.75rem;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem; font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.fbtn.gold { background: var(--gold-dim); border: 1px solid rgba(212,168,83,0.28); color: var(--gold); }
+.fbtn.gold:hover { background: rgba(212,168,83,0.2); }
+.fbtn.ghost { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+.fbtn.ghost:hover { background: var(--surface2); }
+
+.spin {
+  display: inline-block;
+  width: 11px; height: 11px;
+  border: 2px solid rgba(212,168,83,0.22);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: rot 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 0.4rem;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+
+.rc-COMMON    { --rc: #94a3b8; }
+.rc-UNCOMMON  { --rc: #34d399; }
+.rc-RARE      { --rc: #60a5fa; }
+.rc-EPIC      { --rc: #c084fc; }
+.rc-LEGENDARY { --rc: #fbbf24; }
+
+.rarity-bar  { background: var(--rc, #444); }
+.rarity-pill {
+  background: color-mix(in srgb, var(--rc, #94a3b8) 12%, transparent);
+  border-color: color-mix(in srgb, var(--rc, #94a3b8) 32%, transparent);
+  color: var(--rc, #94a3b8);
+}
+
+@media (max-width: 560px) {
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .full { grid-column: 1; }
+}
+
+/* mode switcher */
+.mode-switcher {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.04); border: 1.5px solid rgba(255,255,255,.07);
+  border-radius: 12px; padding: 5px;
+  align-self: flex-start;
+  margin-bottom: 1.25rem;
+}
+.mode-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  cursor: pointer; border: none; text-decoration: none;
+  transition: all .18s; color: rgba(180,165,240,.5); background: transparent;
+}
+.mode-btn:hover { color: #fff; background: rgba(255,255,255,.06); }
+.mode-btn.active { background: var(--gold); color: #15100a; box-shadow: 0 2px 12px rgba(212,168,83,.35); }
+
+/* submit status */
+.submit-status {
+  font-size: 0.78rem; font-weight: 600; padding: 0.5rem 1rem;
+  border-radius: 7px; text-align: center; display: none;
+}
+.submit-status.ok  { background: rgba(77,190,126,.1); color: #4dbe7e; border: 1px solid rgba(77,190,126,.25); }
+.submit-status.err { background: rgba(224,82,82,.1);  color: #e05252; border: 1px solid rgba(224,82,82,.25); }
+.submit-status.loading { background: rgba(212,168,83,.08); color: var(--gold); border: 1px solid rgba(212,168,83,.2); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Mode Switcher -->
+  <div class="mode-switcher">
+    <a class="mode-btn" href="index.html">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      Card Maker
+    </a>
+    <a class="mode-btn" href="edit.html">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Card Editor
+    </a>
+    <span class="mode-btn active">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Card Forge
+    </span>
+  </div>
+
+  <div class="header">
+    <h1>Card Forge</h1>
+    <p>Upload character lore JSON &rarr; set options &rarr; generate TCG cards with Gemini</p>
+  </div>
+
+  <div class="config">
+    <div class="grid2">
+      <div class="field full">
+        <label>Gemini API Key &rarr; <a href="https://ai.google.dev/" target="_blank">Get yours here</a></label>
+        <input type="text" id="apiKey" class="mono" placeholder="AIza…" />
+      </div>
+      <div class="field full">
+        <label>Lore JSON File</label>
+        <label class="file-zone">
+          <input type="file" id="jsonInput" accept=".json" />
+          <svg class="file-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div class="file-label-text">
+            <strong id="fileName">Choose file&hellip;</strong>
+            <span>JSON with character/lore data</span>
+          </div>
+        </label>
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>Number of Cards</label>
+        <input type="number" id="cardCount" value="6" min="1" max="20" />
+      </div>
+      <div class="field">
+        <label>Series Name</label>
+        <input type="text" id="seriesName" placeholder="e.g. Morathi" />
+      </div>
+      <div class="field">
+        <label>Skip player name</label>
+        <input type="text" id="userAlias" placeholder="Leave blank to auto-detect" />
+      </div>
+    </div>
+    <button class="forge-btn" id="forgeBtn">Forge Cards</button>
+  </div>
+
+  <div class="status" id="status">Upload a JSON file and click Forge Cards to begin.</div>
+
+  <div class="cards-grid" id="cardsGrid"></div>
+
+  <div class="footer" id="footer">
+    <button class="fbtn gold" id="submitBtn">Submit to Review</button>
+    <button class="fbtn gold" id="exportBtn">Export JSON</button>
+    <button class="fbtn ghost" onclick="location.reload()">Reset</button>
+  </div>
+  <div id="submitStatus" class="submit-status" style="margin-top:0.75rem;max-width:480px;margin-left:auto;margin-right:auto;"></div>
+
+</div>
+
+<input type="file" id="artPicker" accept="image/*" style="display:none" />
+
+<script>
+/* ── Supabase config (matches index.html / edit.html) ── */
+const SUPABASE_URL         = 'https://djknvuaivmtudiecwztx.supabase.co';
+const SUPABASE_KEY         = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqa252dWFpdm10dWRpZWN3enR4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjEwMjU5NCwiZXhwIjoyMDkxNjc4NTk0fQ.Yj9bAcr8COoeALIP8eeZj9ubpBt6SZxllIXKPQncN2c';
+const SUPABASE_BUCKET      = 'card-images';
+const PENDING_JSON_PATH    = 'pending_cards.json';
+
+let loreData   = null;
+let finalCards = [];
+let artTarget  = -1;
+let pendingImageFiles = {};
+
+async function uploadImageToSupabase(file, cardName) {
+  const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const base = (cardName || 'card').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const path = base + '.' + ext;
+  const res = await fetch(
+    SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + path,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': file.type || 'image/jpeg',
+        'x-upsert': 'true'
+      },
+      body: file
+    }
+  );
+  if (!res.ok) { const err = await res.text(); throw new Error('Upload failed: ' + err); }
+  return SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + path;
+}
+
+const jsonInput  = document.getElementById('jsonInput');
+const forgeBtn   = document.getElementById('forgeBtn');
+const statusEl   = document.getElementById('status');
+const cardsGrid  = document.getElementById('cardsGrid');
+const footer     = document.getElementById('footer');
+const exportBtn  = document.getElementById('exportBtn');
+const submitBtn  = document.getElementById('submitBtn');
+const artPicker  = document.getElementById('artPicker');
+const fileNameEl = document.getElementById('fileName');
+
+jsonInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  fileNameEl.textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      loreData = JSON.parse(ev.target.result);
+      setStatus('Lore loaded — ready to forge.', 'ok');
+    } catch {
+      setStatus('Invalid JSON file.', 'err');
+    }
+  };
+  reader.readAsText(file);
+});
+
+artPicker.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file || artTarget < 0) return;
+  const cardName = finalCards[artTarget].name;
+  setStatus('Uploading image to Supabase...', 'ok');
+  try {
+    const url = await uploadImageToSupabase(file, cardName);
+    finalCards[artTarget].imageUrl = url;
+    renderCards();
+    setStatus(`${cardName} image uploaded.`, 'ok');
+  } catch(err) {
+    setStatus('Upload failed: ' + err.message, 'err');
+  }
+  artPicker.value = '';
+});
+
+forgeBtn.addEventListener('click', async () => {
+  if (!loreData) { setStatus('Please upload a JSON file first.', 'err'); return; }
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey)  { setStatus('Please enter your Gemini API key.', 'err'); return; }
+
+  const count     = parseInt(document.getElementById('cardCount').value) || 6;
+  const series    = document.getElementById('seriesName').value.trim() || 'Unknown';
+  const userAlias = document.getElementById('userAlias').value.trim();
+
+  forgeBtn.disabled = true;
+  cardsGrid.innerHTML = '';
+  footer.classList.remove('show');
+  setStatus(`<span class="spin"></span>Extracting characters — forging cards…`, '');
+
+  // Extract character names directly from "name" fields in the JSON,
+  // only from objects that also have descriptive fields (not bare references).
+  // This ensures we pick main characters, not passing mentions.
+  function extractMainCharacters(data) {
+    const results = [];
+    const seen = new Set();
+    const PLACEHOLDER = /^\s*(\{\{user\}\}|\[user\]|\(user\)|user|reader|you)\s*$/i;
+
+    function walk(obj, depth) {
+      if (!obj || typeof obj !== 'object' || depth > 8) return;
+      if (Array.isArray(obj)) { obj.forEach(item => walk(item, depth + 1)); return; }
+
+      const keys = Object.keys(obj);
+      const hasName = keys.includes('name') && typeof obj.name === 'string' && obj.name.trim().length > 0;
+      // "rich" = the object has other substantial fields alongside name
+      const richFields = keys.filter(k => k !== 'name' && typeof obj[k] === 'string' && obj[k].length > 20);
+      const isRich = richFields.length >= 1 || keys.length >= 3;
+
+      if (hasName && isRich) {
+        const name = obj.name.trim();
+        const key  = name.toLowerCase();
+        if (!seen.has(key) && !PLACEHOLDER.test(name)) {
+          seen.add(key);
+          results.push({ name, data: obj });
+        }
+      }
+      keys.forEach(k => walk(obj[k], depth + 1));
+    }
+
+    walk(data, 0);
+    return results;
+  }
+
+  const extracted = extractMainCharacters(loreData);
+  // Take the first `count` characters found; if fewer exist, use all of them
+  const targetChars = extracted.slice(0, count);
+  const charNames   = targetChars.map(c => c.name);
+
+  setStatus(`<span class="spin"></span>Found ${charNames.length} characters — forging cards…`, '');
+
+  if (charNames.length === 0) {
+    setStatus('No named characters found in JSON. Make sure characters have a "name" field with other data.', 'err');
+    forgeBtn.disabled = false;
+    return;
+  }
+
+  // Trim each character's data individually so ALL characters make it through,
+  // rather than cutting off mid-list when the blob hits a size limit.
+  const PER_CHAR_LIMIT = Math.floor(24000 / targetChars.length);
+  const charDataBlob = '[' + targetChars.map(c => {
+    const s = JSON.stringify(c.data);
+    return s.length > PER_CHAR_LIMIT ? s.substring(0, PER_CHAR_LIMIT) + '…"' : s;
+  }).join(',') + ']';
+
+  // Broader lore context for tone/relationships — kept short since char data is primary
+  const loreContext = JSON.stringify(loreData).substring(0, 4000);
+
+  const prompt = `Create trading cards. Return ONLY valid JSON. No markdown. No code fences.
+
+Characters to make cards for (${charNames.length}):
+${charNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}
+
+For each character, generate exactly one card. Do not invent, rename, or create variants.
+${userAlias ? `Exclude any character named "${userAlias}".` : ''}
+Ignore any character called "Narrator" or similar. Focus on characters with rich descriptive data, not passing mentions.
+
+Use CHARACTER DATA for stats, description, and speech. Use LORE CONTEXT for tone.
+
+CHARACTER DATA:
+${charDataBlob}
+
+LORE CONTEXT:
+${loreContext}
+
+Return exactly this format for each card:
+{
+  "name": "character name",
+  "series": "series name",
+  "rarity": "COMMON|UNCOMMON|RARE|EPIC|LEGENDARY",
+  "atk": N,
+  "hp": N,
+  "cost": N,
+  "description": "styled text with markdown | Max 300 characters. | Example: "'£{''I've got you.''}£ \n---\n /lightgreen/Guard/. Gains /red/+2 ATK/ #atk# if [[Marija]] is in play.'",
+  "abilities": {
+    "onPlay": [{"type": "Ability", "value": N}],
+    "onAttack": [{"type": "Ability", "value": N}]
+  },
+  "speech": {
+    "draw": ["quote with example [style:corrupt]style and [anim:shake]anim"],
+    "play": ["quote"],
+    "attack": ["quote"],
+    "attacked": ["quote"]
+  }
+}
+
+Speech formatting:
+- Use [style:effect]text for text effects (corrupt, fire, ice, shadow, gold, electric, neon, blood, wave)
+- Use [anim:effect]text for animation effects (shake, bounce)
+
+Description formatting (use these to stylize):
+- **bold** for emphasis
+- £{italic text}£ for subtle notes
+- /color/text/ for colored text
+- [[card name]] for linked cards
+- #atk# / #hp# / #cost# for stat icons
+- --- for section divider
+- [rainbow]text[/rainbow] for rainbow text
+- {shake}text{/shake} for shake effect
+- [glitch]text[/glitch] for glitch effect
+- [fire]text[/fire] for fire effect
+- [ice]text[/ice] for ice effect
+- [shadow]text[/shadow] for shadow effect
+- [gold]text[/gold] for gold effect
+- [electric]text[/electric] for electric effect
+- [type]text[/type] for typewriter effect
+- [spin]text[/spin] for spin effect
+- [corrupt]text[/corrupt] for corrupt effect
+- [neon]text[/neon] for neon effect
+- [wave]text[/wave] for wave effect
+- [void]text[/void] for void effect
+- [blood]text[/blood] for blood effect
+
+Abilities must use these triggers: onPlay, onAttack, onTurnEnd, onTurnStart, onDeath, whenAttacked, whenNotAttack.
+Effect types from: healAllies, healNexus, healSelf, dealDamageAllEnemies, damageRandomEnemy, attackUpSelf, hpUpSelf, snipeDamage, splashAdjacent, silenceTarget, silenceRandomEnemy, disableTarget, drawCard, gainMana, discountHandBySeries, valuePerSeriesInEnemyBoard, applyInvincible, stealAttack, stealAttackFromAll, reviveSelf, berserkOverflow, yandereRage, spawnCard, spawnOnBoard, nexusHpToPowerUp, giveAllAlliesEffect, giveAllEnemiesEffect, rollStat, removeEnemyAbility, energised, manaDrain, manaSteal, giveSpecificCardBenefits, applyShield, applyReflect, applyInvisibility, curseAllEnemies, lowerRandomEnemysAttack, lowerSpecificEnemysAttack, lowerAllEnemiesAttack, powerExchange, multiStrike, drainHealthFromAll, giveSpecificAllyEffect, triggerDialogue, summonRandom, damageEnemyNexus, atkUpAllAllies
+
+Include scenario for conditional effects like if characters have relationships, so if the player has certain cards in hand or on board. Example:
+{
+  "onPlay": [
+    {
+      "type": "Ability",
+      "value": 2
+    },
+    {
+      "type": "Ability",
+      "value": "1 * context.scenario",
+      "scenario": {
+        "type": "or",
+        "cards": ["Character", "Character"],
+        "positive": 1,
+        "negative": 0
+      }
+    }
+  ]
+}
+
+Rarity guide:
+- COMMON: 1-2 atk, 1-5 hp, 1 ability
+- UNCOMMON: 1-4 atk, 1-6 hp, 1-2 abilities
+- RARE: 1-5 atk, 2-7 hp, 2 abilities
+- EPIC: 1-7 atk, 3-8 hp, 2-3 abilities
+- LEGENDARY: 1-9 atk, 5-10 hp, 3 abilities
+
+Return exactly: {"cards":[...]}`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+    const res  = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) {
+      setStatus('Gemini error: ' + (data.error.message || JSON.stringify(data.error)), 'err');
+      forgeBtn.disabled = false;
+      return;
+    }
+
+    const raw    = data.candidates[0].content.parts[0].text;
+    const clean  = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    // Deduplicate by name (case-insensitive) as a safety net
+    const seen = new Set();
+    const deduped = parsed.cards.filter(c => {
+      const key = c.name.toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    finalCards = deduped.map(c => ({ ...c, series, imageUrl: null }));
+    renderCards();
+    footer.classList.add('show');
+    setStatus(`${finalCards.length} cards forged. Click a card art area to add artwork.`, 'ok');
+  } catch (err) {
+    console.error(err);
+    setStatus('Failed — check your API key or try a smaller JSON.', 'err');
+  } finally {
+    forgeBtn.disabled = false;
+  }
+});
+
+function renderCards() {
+  cardsGrid.innerHTML = finalCards.map((card, i) => {
+    const abilities = card.abilities;
+    const absHtml = abilities && typeof abilities === 'object'
+      ? Object.entries(abilities).flatMap(([, effects]) =>
+          (Array.isArray(effects) ? effects : [effects]).map(e =>
+            `<span class="ab">${e.type}</span>`
+          )
+        ).join('')
+      : Array.isArray(abilities)
+        ? abilities.map(a => `<span class="ab">${esc(a)}</span>`).join('')
+        : '';
+    const speechHtml = card.speech && typeof card.speech === 'object'
+      ? Object.values(card.speech).flat().map(q => parseSpeech(esc(q))).join(' ')
+      : card.speech ? esc(card.speech) : '';
+    return `
+    <div class="card rc-${card.rarity}">
+      <div class="rarity-bar"></div>
+      <div class="card-art" onclick="pickArt(${i})">
+        ${card.imageUrl ? `<img src="${esc(card.imageUrl)}" alt="${esc(card.name)}" />` : ''}
+        <div class="art-fade"></div>
+        <div class="cost">${card.cost}</div>
+        <div class="rarity-pill">${card.rarity}</div>
+        ${!card.imageUrl ? `
+          <div class="art-cue">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text3)"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            click to add artwork
+          </div>` : ''}
+        <div class="name-block">
+          <div class="series-tag">${esc(card.series)}</div>
+          <div class="char-name">${esc(card.name)}</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="stats">
+          <div class="stat atk"><div class="sl">ATK</div><div class="sv">${card.atk}</div></div>
+          <div class="stat hp"><div class="sl">HP</div><div class="sv">${card.hp}</div></div>
+        </div>
+        <div class="desc">${renderDesc(card.description)}</div>
+        ${absHtml ? `<div class="abilities">${absHtml}</div>` : ''}
+        ${speechHtml ? `<div class="speech">${speechHtml}</div>` : ''}
+        <div class="card-actions">
+          <button class="cbtn" onclick="pickArt(${i})">Set art</button>
+          <button class="cbtn" onclick="copyCard(${i})">Copy JSON</button>
+          <select class="cbtn" style="background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.64rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;" onchange="redoCard(${i}, this.value)">
+            <option value="">Redo with rarity…</option>
+            <option value="COMMON">Common</option>
+            <option value="UNCOMMON">Uncommon</option>
+            <option value="RARE">Rare</option>
+            <option value="EPIC">Epic</option>
+            <option value="LEGENDARY">Legendary</option>
+          </select>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.pickArt = idx => { artTarget = idx; artPicker.click(); };
+window.copyCard = idx => {
+  const { imageUrl, ...rest } = finalCards[idx];
+  navigator.clipboard.writeText(JSON.stringify(rest, null, 2))
+    .then(() => setStatus(`${finalCards[idx].name} copied to clipboard.`, 'ok'));
+};
+
+window.redoCard = (idx, rarity) => {
+  if (!rarity) return;
+  const card = finalCards[idx];
+  artTarget = idx;
+  setStatus(`<span class="spin"></span>Regenerating ${card.name} with ${rarity}…`, '');
+  forgeBtn.disabled = true;
+
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { setStatus('Please enter your Gemini API key.', 'err'); forgeBtn.disabled = false; return; }
+
+  const prompt = `Return ONLY valid JSON. No markdown. No code fences.
+
+Regenerate this card with rarity "${rarity}". Recalculate stats, abilities, description, and speech to match the new rarity tier.
+
+Current card:
+${JSON.stringify({
+  name: card.name,
+  series: card.series,
+  rarity: card.rarity,
+  atk: card.atk,
+  hp: card.hp,
+  cost: card.cost,
+  description: card.description,
+  abilities: card.abilities,
+  speech: card.speech
+})}
+
+Rarity stat guide:
+- COMMON: 1-2 atk, 1-5 hp, 1 ability
+- UNCOMMON: 1-4 atk, 1-6 hp, 1-2 abilities
+- RARE: 1-5 atk, 2-7 hp, 2 abilities
+- EPIC: 1-7 atk, 3-8 hp, 2-3 abilities
+- LEGENDARY: 1-9 atk, 5-10 hp, 3 abilities + Legendary Passive (if applicable)
+
+Keep the character name, series, and speech consistent with the original. Adjust abilities, description, and stats to fit the new rarity. Preserve any scenario structures for conditional abilities.
+
+Return exactly: {"name":"...","series":"...","rarity":"${rarity}","atk":N,"hp":N,"cost":N,"description":"...","abilities":{...},"speech":{...}}`;
+
+  fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' }
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) throw new Error(data.error.message);
+    const raw = data.candidates[0].content.parts[0].text;
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    finalCards[idx] = { ...parsed, series: card.series, imageUrl: card.imageUrl };
+    renderCards();
+    setStatus(`${card.name} updated to ${rarity}.`, 'ok');
+  })
+  .catch(err => {
+    console.error(err);
+    setStatus('Regeneration failed: ' + err.message, 'err');
+  })
+  .finally(() => { forgeBtn.disabled = false; });
+};
+
+exportBtn.addEventListener('click', () => {
+  const clean = finalCards.map(({ imageUrl, ...rest }) => rest);
+  const a = document.createElement('a');
+  a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(clean, null, 2));
+  a.download = 'cards.json';
+  a.click();
+});
+
+submitBtn.addEventListener('click', async () => {
+  if (!finalCards.length) return;
+  const statusDiv = document.getElementById('submitStatus');
+  statusDiv.style.display = '';
+  statusDiv.className = 'submit-status loading';
+  statusDiv.textContent = 'Uploading images and submitting…';
+  submitBtn.disabled = true;
+
+  try {
+    // Upload images for cards that have local data URLs
+    for (let i = 0; i < finalCards.length; i++) {
+      const card = finalCards[i];
+      if (card.imageUrl && !card.imageUrl.startsWith('http')) {
+        // Convert data URL to file
+        const res = await fetch(card.imageUrl);
+        const blob = await res.blob();
+        const file = new File([blob], card.name + '.jpg', { type: blob.type });
+        const url = await uploadImageToSupabase(file, card.name);
+        finalCards[i].imageUrl = url;
+      }
+    }
+
+    // Build cards array with uploaded image URLs
+    const cards = finalCards.map(({ imageUrl, ...rest }) => {
+      if (imageUrl && imageUrl.startsWith('http')) rest.image = imageUrl;
+      return rest;
+    });
+
+    // Fetch existing pending_cards.json and merge
+    let pending = [];
+    try {
+      const r = await fetch(SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + PENDING_JSON_PATH + '?t=' + Date.now());
+      if (r.ok) pending = await r.json();
+    } catch(e) {}
+
+    let added = 0, updated = 0;
+    for (const card of cards) {
+      const idx = pending.findIndex(c => c.name === card.name);
+      if (idx >= 0) { pending[idx] = card; updated++; }
+      else           { pending.push(card); added++; }
+    }
+
+    const res = await fetch(
+      SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + PENDING_JSON_PATH,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: JSON.stringify(pending, null, 2)
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err);
+    }
+
+    const n = cards.length;
+    statusDiv.className = 'submit-status ok';
+    statusDiv.textContent = `${n} card${n === 1 ? '' : 's'} submitted for review!` + (updated ? ` (${updated} updated)` : '');
+  } catch(e) {
+    statusDiv.className = 'submit-status err';
+    statusDiv.textContent = 'Submission failed: ' + e.message;
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+function setStatus(msg, cls) {
+  statusEl.innerHTML = msg;
+  statusEl.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+function parseLine(t) {
+  if(!t) return '';
+
+  // Inject shared keyframes + classes once per page
+  if (!document.getElementById('desc-fx-styles')) {
+      const style = document.createElement('style');
+      style.id = 'desc-fx-styles';
+      style.textContent = `
+          /* ── GLITCH ── */
+          @keyframes desc-glitch-anim {
+              0%,100%{clip-path:inset(50% 0 30% 0);transform:translate(-3px,0) skewX(-1deg)}
+              20%{clip-path:inset(10% 0 60% 0);transform:translate(3px,0) skewX(2deg)}
+              40%{clip-path:inset(80% 0 5% 0);transform:translate(-2px,0)}
+              60%{clip-path:inset(30% 0 40% 0);transform:translate(2px,1px)}
+              80%{clip-path:inset(5% 0 80% 0);transform:translate(0,-1px)}
+          }
+          .desc-glitch {
+              position: relative;
+              color: #e2e8f0;
+              text-shadow: 0 0 4px #a78bfa;
+          }
+          .desc-glitch::before,
+          .desc-glitch::after {
+              content: attr(data-text);
+              position: absolute;
+              left: 0; top: 0;
+              width: 100%; height: 100%;
+              pointer-events: none;
+          }
+          .desc-glitch::before {
+              color: #f87171;
+              animation: desc-glitch-anim 2.5s infinite steps(1);
+              opacity: 0.8;
+          }
+          .desc-glitch::after {
+              color: #67e8f9;
+              animation: desc-glitch-anim 2.5s infinite steps(1) reverse;
+              opacity: 0.7;
+          }
+
+          /* ── FIRE ── */
+          @keyframes desc-fire-shift {
+              0%{background-position:0% 100%}
+              50%{background-position:100% 0%}
+              100%{background-position:0% 100%}
+          }
+          .desc-fire {
+              background: linear-gradient(to top, #fbbf24, #f97316, #ef4444, #fde68a, #f97316);
+              background-size: 200% 300%;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-fire-shift 1.4s ease infinite;
+              text-shadow: none;
+              filter: drop-shadow(0 0 6px #f9731688);
+          }
+
+          /* ── ICE ── */
+          @keyframes desc-ice-shimmer {
+              0%{background-position:200% center}
+              100%{background-position:-200% center}
+          }
+          .desc-ice {
+              background: linear-gradient(90deg, #bfdbfe, #e0f2fe, #ffffff, #93c5fd, #bfdbfe);
+              background-size: 300% auto;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-ice-shimmer 2.5s linear infinite;
+              filter: drop-shadow(0 0 5px #7dd3fc88);
+          }
+
+          /* ── SHADOW ── */
+          @keyframes desc-shadow-pulse {
+              0%,100%{text-shadow:0 0 8px #7c3aed,0 0 20px #4c1d95,0 0 40px #1e1b4b}
+              50%{text-shadow:0 0 4px #6d28d9,0 0 10px #2e1065}
+          }
+          .desc-shadow {
+              color: #c4b5fd;
+              animation: desc-shadow-pulse 2s ease-in-out infinite;
+          }
+
+          /* ── GOLD ── */
+          @keyframes desc-gold-shimmer {
+              0%{background-position:200% center}
+              100%{background-position:-200% center}
+          }
+          .desc-gold {
+              background: linear-gradient(90deg, #78350f, #fbbf24, #fef3c7, #f59e0b, #d97706, #fef3c7, #fbbf24);
+              background-size: 300% auto;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-gold-shimmer 2s linear infinite;
+              filter: drop-shadow(0 0 5px #fbbf2466);
+          }
+
+          /* ── ELECTRIC ── */
+          @keyframes desc-electric-flicker {
+              0%,100%{opacity:1;text-shadow:0 0 6px #fef08a,0 0 14px #facc15,0 0 28px #eab308}
+              15%{opacity:0.7;text-shadow:0 0 2px #fef9c3}
+              30%{opacity:1;text-shadow:0 0 8px #fef08a,0 0 20px #facc15}
+              50%{opacity:0.85;text-shadow:0 0 4px #fef08a}
+              70%{opacity:1;text-shadow:0 0 10px #fef08a,0 0 22px #eab308}
+              85%{opacity:0.6;text-shadow:none}
+          }
+          .desc-electric {
+              color: #fef08a;
+              animation: desc-electric-flicker 1.2s steps(1) infinite;
+          }
+
+          /* ── TYPEWRITER ── */
+          @keyframes desc-typechar-reveal {
+              from{opacity:0;transform:translateY(-4px)}
+              to{opacity:1;transform:translateY(0)}
+          }
+          .desc-typewriter { display: inline; }
+          .desc-typechar {
+              opacity: 0;
+              display: inline-block;
+              animation: desc-typechar-reveal 0.12s ease forwards;
+          }
+
+          /* ── SPIN ── */
+          @keyframes desc-spin-anim {
+              from{transform:rotate(0deg)}
+              to{transform:rotate(360deg)}
+          }
+          .desc-spin {
+              animation: desc-spin-anim 2s linear infinite;
+              display: inline-block;
+          }
+
+          /* ── CORRUPT ── */
+          @keyframes desc-corrupt-anim {
+              0%,100%{transform:skewX(0deg) skewY(0deg);opacity:1;filter:none}
+              10%{transform:skewX(5deg);opacity:0.7;filter:hue-rotate(90deg)}
+              20%{transform:skewX(-3deg) skewY(1deg);opacity:1;filter:none}
+              35%{transform:skewX(0deg);filter:hue-rotate(180deg);opacity:0.5}
+              50%{transform:skewX(4deg) skewY(-1deg);opacity:1;filter:none}
+              65%{transform:none;opacity:0.6;filter:hue-rotate(270deg)}
+              80%{transform:skewX(-2deg);opacity:1;filter:none}
+          }
+          .desc-corrupt {
+              color: #f87171;
+              animation: desc-corrupt-anim 3s steps(1) infinite;
+              display: inline-block;
+          }
+
+          /* ── NEON ── */
+          @keyframes desc-neon-pulse {
+              0%,100%{text-shadow:0 0 4px #f0abfc,0 0 10px #e879f9,0 0 20px #a21caf,0 0 40px #86198f}
+              50%{text-shadow:0 0 2px #f0abfc,0 0 6px #e879f9,0 0 12px #a21caf}
+          }
+          .desc-neon {
+              color: #f0abfc;
+              animation: desc-neon-pulse 1.8s ease-in-out infinite;
+          }
+
+          /* ── WAVE ── */
+          @keyframes desc-wave-bob {
+              0%,100%{transform:translateY(0)}
+              50%{transform:translateY(-5px)}
+          }
+          .desc-wavechar {
+              animation: desc-wave-bob 0.8s ease-in-out infinite;
+              color: #a5f3fc;
+          }
+
+          /* ── VOID ── */
+          @keyframes desc-void-rotate {
+              0%{background-position:0% 50%}
+              50%{background-position:100% 50%}
+              100%{background-position:0% 50%}
+          }
+          .desc-void {
+              background: linear-gradient(270deg, #1e1b4b, #4c1d95, #7c3aed, #312e81, #2e1065, #6d28d9);
+              background-size: 400% 400%;
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: desc-void-rotate 4s ease infinite;
+              filter: drop-shadow(0 0 6px #7c3aed88);
+          }
+
+          /* ── BLOOD ── */
+          @keyframes desc-blood-drip {
+              0%,100%{text-shadow:0 0 6px #991b1b,0 2px 8px #7f1d1d;opacity:1}
+              30%{text-shadow:0 4px 12px #dc2626,0 0 4px #991b1b;opacity:0.85}
+              60%{text-shadow:0 1px 4px #7f1d1d;opacity:1}
+          }
+          .desc-blood {
+              color: #fca5a5;
+              animation: desc-blood-drip 2.2s ease-in-out infinite;
+          }
+      `;
+      document.head.appendChild(style);
+  }
+
+  t=t.replace(/\{\{hidden\}\}.*?\{\{\/hidden\}\}/g,'');
+  t=t.replace(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g,'<span style="color:#22d3ee;font-weight:700;text-decoration:underline">$1</span>');
+  t=t.replace(/£\{(.*?)\}£/g,'<span style="font-style:italic;opacity:.8">$1</span>');
+  t=t.replace(/\/([a-zA-Z#0-9]+)\/(.*?)\//g,'<span style="color:$1;font-weight:700">$2</span>');
+  t=t.replace(/\*\*(.*?)\*\*/g,'<span style="font-weight:900;color:#fff;text-shadow:0 0 8px rgba(255,255,255,.4)">$1</span>');
+  t=t.replace(/_(\d+px)_(.*?)_/g,'<span style="font-size:$1">$2</span>');
+  t=t.replace(/\[rainbow\](.*?)\[\/rainbow\]/g,'<span style="background:linear-gradient(to right,#ef4444,#eab308,#22c55e,#3b82f6,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900">$1</span>');
+  t=t.replace(/\{shake\}(.*?)\{\/shake\}/g,'<span style="color:#f87171">$1</span>');
+  t=t.replace(/#atk#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#ef4444" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/></svg>');
+  t=t.replace(/#hp#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#22c55e" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>');
+  t=t.replace(/#cost#/g,'<svg style="display:inline;width:10px;height:10px;vertical-align:middle;color:#818cf8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>');
+
+  // [flat*N] squishes vertically → scaleY
+  t = t.replace(/\[flat\*(\d+)\](.*?)\[\/flat\]/g, '<span style="display: inline-block; transform: scaleY($1%);">$2</span>');
+
+  // [stretch*N] stretches horizontally → scaleX
+  t = t.replace(/\[stretch\*(\d+)\](.*?)\[\/stretch\]/g, '<span style="display: inline-block; transform: scaleX($1%);">$2</span>');
+
+  // 13. Glitch Text: [glitch]Text[/glitch]
+  t = t.replace(/\[glitch\](.*?)\[\/glitch\]/g, '<span class="desc-glitch" data-text="$1">$1</span>');
+
+  // 14. Fire Text: [fire]Text[/fire]
+  t = t.replace(/\[fire\](.*?)\[\/fire\]/g, '<span class="desc-fire font-black">$1</span>');
+
+  // 15. Ice Text: [ice]Text[/ice]
+  t = t.replace(/\[ice\](.*?)\[\/ice\]/g, '<span class="desc-ice font-bold">$1</span>');
+
+  // 16. Shadow Text: [shadow]Text[/shadow]
+  t = t.replace(/\[shadow\](.*?)\[\/shadow\]/g, '<span class="desc-shadow font-bold">$1</span>');
+
+  // 17. Gold/Legendary Text: [gold]Text[/gold]
+  t = t.replace(/\[gold\](.*?)\[\/gold\]/g, '<span class="desc-gold font-black">$1</span>');
+
+  // 18. Electric Text: [electric]Text[/electric]
+  t = t.replace(/\[electric\](.*?)\[\/electric\]/g, '<span class="desc-electric font-bold">$1</span>');
+
+  // 19. Typewriter Text: [type]Text[/type]
+  t = t.replace(/\[type\](.*?)\[\/type\]/g, (_, inner) => {
+      const chars = [...inner].map((ch, i) =>
+          `<span class="desc-typechar" style="animation-delay:${i * 60}ms">${ch === ' ' ? '&nbsp;' : ch}</span>`
+      ).join('');
+      return `<span class="desc-typewriter">${chars}</span>`;
+  });
+
+  // 20. Spin Text: [spin]Text[/spin]
+  t = t.replace(/\[spin\](.*?)\[\/spin\]/g, '<span class="desc-spin inline-block">$1</span>');
+
+  // 21. Corrupt Text: [corrupt]Text[/corrupt]
+  t = t.replace(/\[corrupt\](.*?)\[\/corrupt\]/g, '<span class="desc-corrupt font-mono font-black">$1</span>');
+
+  // 22. Neon Text: [neon]Text[/neon]
+  t = t.replace(/\[neon\](.*?)\[\/neon\]/g, '<span class="desc-neon font-black">$1</span>');
+
+  // 23. Wave Text: [wave]Text[/wave]
+  t = t.replace(/\[wave\](.*?)\[\/wave\]/g, (_, inner) => {
+      const chars = [...inner].map((ch, i) =>
+          `<span class="desc-wavechar inline-block" style="animation-delay:${i * 80}ms">${ch === ' ' ? '&nbsp;' : ch}</span>`
+      ).join('');
+      return `<span>${chars}</span>`;
+  });
+
+  // 24. Void Text: [void]Text[/void]
+  t = t.replace(/\[void\](.*?)\[\/void\]/g, '<span class="desc-void font-black">$1</span>');
+
+  // 25. Blood Text: [blood]Text[/blood]
+  t = t.replace(/\[blood\](.*?)\[\/blood\]/g, '<span class="desc-blood font-black">$1</span>');
+
+  return t;
+}
+
+function renderDesc(text) {
+  return text.split('\\n').map(line=>{
+    if(line.trim()==='---') return '<div style="width:100%;height:1px;background:rgba(167,139,250,.3);margin:3px 0"></div>';
+    return '<div>'+parseLine(line)+'</div>';
+  }).join('');
+}
+
+function parseSpeech(text) {
+  if(!text) return '';
+  // Handle [style:effect]text[/style]
+  text = text.replace(/\[style:(\w+)\](.*?)\[\/style\]/g, (_, effect, inner) => {
+    const effectMap = {
+      corrupt: '<span class="desc-corrupt font-mono font-black">$2</span>',
+      fire: '<span class="desc-fire font-black">$2</span>',
+      ice: '<span class="desc-ice font-bold">$2</span>',
+      shadow: '<span class="desc-shadow font-bold">$2</span>',
+      gold: '<span class="desc-gold font-black">$2</span>',
+      electric: '<span class="desc-electric font-bold">$2</span>',
+      neon: '<span class="desc-neon font-black">$2</span>',
+      blood: '<span class="desc-blood font-black">$2</span>',
+      glitch: '<span class="desc-glitch" data-text="$2">$2</span>',
+      wave: '<span class="desc-wavechar inline-block">$2</span>',
+      void: '<span class="desc-void font-black">$2</span>',
+      rainbow: '<span style="background:linear-gradient(to right,#ef4444,#eab308,#22c55e,#3b82f6,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900">$2</span>'
+    };
+    return effectMap[effect.toLowerCase()] || `<span style="color:${effect}">$2</span>`;
+  });
+  // Handle [anim:shake]text[/anim]
+  text = text.replace(/\[anim:(\w+)\](.*?)\[\/anim\]/g, (_, anim, inner) => {
+    if(anim === 'shake') return `<span style="color:#f87171">${inner}</span>`;
+    return inner;
+  });
+  // Handle basic formats
+  text = text.replace(/\*\*(.*?)\*\*/g, '<span style="font-weight:900;color:#fff;text-shadow:0 0 8px rgba(255,255,255,.4)">$1</span>');
+  text = text.replace(/£\{(.*?)\}£/g, '<span style="font-style:italic;opacity:.8">$1</span>');
+  return text;
+}
+
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
